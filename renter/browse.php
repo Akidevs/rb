@@ -243,69 +243,69 @@ foreach ($allProducts as $product) {
             <?php endforeach; ?>
         </div>
     </div>
+
+    <!-- Recommendations Section -->
+<div class="px-5 py-5 bg-body">
+    <div class="d-flex justify-content-between">
+        <p class="fs-5 fw-bold mb-3 active">Explore our Recommendations</p>
+        <div>
+            <button class="btn btn-outline-success"><i class="bi bi-arrow-left"></i></button>
+            <button class="btn btn-outline-success"><i class="bi bi-arrow-right"></i></button>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <!-- Recommended products section -->
+        <?php
+            // Fetch recommended products or related products based on some criteria (e.g., popular or based on category)
+            // Assuming the recommendation fetching logic is similar to the product fetching one
+            $recommendations = []; // Fetch recommendations here
+            foreach ($recommendations as $product): ?>
+                <div class="col">
+                    <div class="border rounded-3 p-3 bg-body hover-effect">
+                        <a href="item.php?id=<?php echo $product['id']; ?>" class="text-decoration-none text-dark">
+                            <img src="../img/uploads/<?php echo $product['image']; ?>" 
+                                 alt="<?php echo htmlspecialchars($product['name']); ?>" 
+                                 class="img-thumbnail shadow-sm product-image">
+                            <p class="fs-5 mt-2 ms-2 mb-0 fw-bold"><?php echo htmlspecialchars($product['name']); ?></p>
+                        </a>
+                    </div>
+                </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+
+                    </div>
+            </div>
 <!-- Pagination -->
 <!-- Pagination -->
 <div class="mx-3 mb-4">
-    <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-between">
-            <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                <a class="page-link" 
-                   href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page - 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>" 
-                   aria-label="Previous">
-                    <i class="bi bi-caret-left-fill"></i>
-                </a>
-            </li>
-            
-            <div class="d-flex gap-2">
-                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                    <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                        <a class="page-link" 
-                           href="?search=<?php echo $searchTerm; ?>&page=<?php echo $i; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>">
-                           <?php echo $i; ?>
-                        </a>
-                    </li>
-                <?php endfor; ?>
-            </div>
+    <div class="d-flex justify-content-between">
+        <!-- Previous button -->
+        <button type="button" class="btn btn-light text-start" 
+                <?php echo $page <= 1 ? 'disabled' : ''; ?>
+                onclick="window.location.href='?search=<?php echo $searchTerm; ?>&page=<?php echo $page - 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>'">
+            <small><i class="bi bi-caret-left-fill"></i></small>
+        </button>
 
-            <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                <a class="page-link" 
-                   href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page + 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>" 
-                   aria-label="Next">
-                    <i class="bi bi-caret-right-fill"></i>
-                </a>
-            </li>
-        </ul>
-    </nav>
+        <!-- Page numbers -->
+        <div class="d-flex gap-2">
+            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                <button type="button" class="btn btn-light text-start" 
+                        onclick="window.location.href='?search=<?php echo $searchTerm; ?>&page=<?php echo $i; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>'">
+                    <small><?php echo $i; ?></small>
+                </button>
+            <?php endfor; ?>
+        </div>
+
+        <!-- Next button -->
+        <button type="button" class="btn btn-light text-start" 
+                <?php echo $page >= $totalPages ? 'disabled' : ''; ?>
+                onclick="window.location.href='?search=<?php echo $searchTerm; ?>&page=<?php echo $page + 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>'">
+            <small><i class="bi bi-caret-right-fill"></i></small>
+        </button>
+    </div>
 </div>
-
-                </div>
-            </div>
-
-            <!-- Recommendations Section -->
-            <div class="px-5 py-5 bg-body">
-                <div class="d-flex justify-content-between">
-                    <p class="fs-5 fw-bold mb-3 active">Explore our Recommendations</p>
-                    <div>
-                        <button class="btn btn-outline-success"><i class="bi bi-arrow-left"></i></button>
-                        <button class="btn btn-outline-success"><i class="bi bi-arrow-right"></i></button>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <!-- Add recommended products here if available -->
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <footer class="text-center text-lg-start bg-body-tertiary text-muted border-top">
-            <div class="d-flex flex-column flex-sm-row justify-content-between py-2 border-top">
-                <p class="ps-3">© 2024 Rentbox. All rights reserved.</p>
-                <ul class="list-unstyled d-flex pe-3">
-                    <li class="ms-3"><a href=""><i class="bi bi-facebook text-body"></i></a></li>
-                    <li class="ms-3"><a href=""><i class="bi bi-twitter text-body"></i></a></li>
-                    <li class="ms-3"><a href=""><i class="bi bi-linkedin text-body"></i></a></li>
-                </ul>
-            </div>
-            </footer>
+<?php require_once '../includes/footer.php' ?>
         </div>
     </div>
 

@@ -1,7 +1,7 @@
 <?php
 // addid.php
 session_start();
-require_once 'db/db.php'; // This file must create a PDO instance in $conn
+require_once 'db/db.php'; // Ensure this file creates a PDO instance in $conn
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: signup.php");
@@ -12,7 +12,7 @@ $error = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $uploadDir = "img/verification/";
-    
+
     // Ensure the uploads directory exists.
     if (!is_dir($uploadDir)) {
         if (!mkdir($uploadDir, 0777, true)) {
@@ -23,30 +23,49 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Allowed MIME types and maximum file size (5 MB)
     $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     $maxFileSize = 5 * 1024 * 1024; // 5MB in bytes
-    
-    // Validate and process valid ID photo
-    if (isset($_FILES['valid_id_photo']) && $_FILES['valid_id_photo']['error'] === 0) {
+
+    // Validate and process valid ID front photo (first upload)
+    if (isset($_FILES['valid_id_front']) && $_FILES['valid_id_front']['error'] === 0 && !isset($_POST['upload_back'])) {
         // Check file size
-        if ($_FILES['valid_id_photo']['size'] > $maxFileSize) {
-            $error = "Valid ID photo must be 5MB or less.";
+        if ($_FILES['valid_id_front']['size'] > $maxFileSize) {
+            $error = "Valid ID front photo must be 5MB or less.";
         }
         // Check MIME type using PHP's finfo
         $finfo = new finfo(FILEINFO_MIME_TYPE);
-        $mimeType = $finfo->file($_FILES['valid_id_photo']['tmp_name']);
+        $mimeType = $finfo->file($_FILES['valid_id_front']['tmp_name']);
         if (!in_array($mimeType, $allowedTypes)) {
-            $error = "Valid ID photo must be an image (JPEG, PNG, GIF).";
+            $error = "Valid ID front photo must be an image (JPEG, PNG, GIF).";
         }
         if (!$error) {
             // Use time() to generate a unique prefix for the file name.
-            $validIdName = $uploadDir . time() . "_" . basename($_FILES['valid_id_photo']['name']);
-            if (!move_uploaded_file($_FILES['valid_id_photo']['tmp_name'], $validIdName)) {
-                $error = "Error uploading valid ID photo.";
+            $validIdFrontName = $uploadDir . time() . "_front_" . basename($_FILES['valid_id_front']['name']);
+            if (!move_uploaded_file($_FILES['valid_id_front']['tmp_name'], $validIdFrontName)) {
+                $error = "Error uploading valid ID front photo.";
             }
         }
-    } else {
-        $error = "Error uploading valid ID photo.";
+        if (!$error) {
+            $_POST['upload_front'] = true; // Flag to show back photo upload
+        }
     }
-    
+
+    // Validate and process valid ID back photo (after front upload)
+    if (isset($_FILES['valid_id_back']) && $_FILES['valid_id_back']['error'] === 0 && isset($_POST['upload_front'])) {
+        // Check file size
+        if ($_FILES['valid_id_back']['size'] > $maxFileSize) {
+            $error = "Valid ID back photo must be 5MB or less.";
+        }
+        $mimeType = $finfo->file($_FILES['valid_id_back']['tmp_name']);
+        if (!in_array($mimeType, $allowedTypes)) {
+            $error = "Valid ID back photo must be an image (JPEG, PNG, GIF).";
+        }
+        if (!$error) {
+            $validIdBackName = $uploadDir . time() . "_back_" . basename($_FILES['valid_id_back']['name']);
+            if (!move_uploaded_file($_FILES['valid_id_back']['tmp_name'], $validIdBackName)) {
+                $error = "Error uploading valid ID back photo.";
+            }
+        }
+    }
+
     // Validate and process selfie photo
     if (isset($_FILES['selfie_photo']) && $_FILES['selfie_photo']['error'] === 0) {
         if ($_FILES['selfie_photo']['size'] > $maxFileSize) {
@@ -57,23 +76,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "Selfie photo must be an image (JPEG, PNG, GIF).";
         }
         if (!$error) {
-            $selfieName = $uploadDir . time() . "_" . basename($_FILES['selfie_photo']['name']);
+            $selfieName = $uploadDir . time() . "_selfie_" . basename($_FILES['selfie_photo']['name']);
             if (!move_uploaded_file($_FILES['selfie_photo']['tmp_name'], $selfieName)) {
                 $error = "Error uploading selfie photo.";
             }
         }
-    } else {
-        $error = "Error uploading selfie photo.";
     }
-    
+
     // If no error so far, update the database.
-    if (!$error) {
+    if (!$error && isset($validIdFrontName) && isset($validIdBackName) && isset($selfieName)) {
         $sql = "UPDATE user_verification 
-                SET valid_id_photo = :valid_id_photo, selfie_photo = :selfie_photo 
+                SET valid_id_photo = :valid_id_photo, valid_id_back_photo = :valid_id_back_photo, selfie_photo = :selfie_photo 
                 WHERE user_id = :user_id";
         $stmt = $conn->prepare($sql);
         $params = [
-            ':valid_id_photo' => $validIdName,
+            ':valid_id_photo' => $validIdFrontName,
+            ':valid_id_back_photo' => $validIdBackName,
             ':selfie_photo'   => $selfieName,
             ':user_id'        => $_SESSION['user_id']
         ];
@@ -123,12 +141,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <?php if ($error): ?>
                             <div class="alert alert-danger"><?php echo $error; ?></div>
                         <?php endif; ?>
+
+
                         <form action="addid.php" method="POST" enctype="multipart/form-data">
                             <div class="mb-3 mx-3">
                                 <small class="mb-3">
-                                    Upload a photo of your valid id. View <a href="">Valid ID list</a> for details.
+                                    Upload a photo of the **front** of your valid ID. View <a href="">Valid ID list</a> for details.
                                 </small>
-                                <input type="file" name="valid_id_photo" class="form-control rounded-5" required>
+                                <input type="file" name="valid_id_front" class="form-control rounded-5" required>
+                            </div>
+                            <div class="mb-3 mx-3">
+                                <small class="mb-3">
+                                    Upload a photo of the **back** of your valid ID. View <a href="">Valid ID list</a> for details.
+                                </small>
+                                <input type="file" name="valid_id_back" class="form-control rounded-5" required>
                             </div>
                             <div class="mb-3 mx-3">
                                 <small class="mb-3">

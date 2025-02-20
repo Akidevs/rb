@@ -1,4 +1,5 @@
 <?php
+// item.php
 session_start();
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -7,292 +8,465 @@ error_reporting(E_ALL);
 // Include database connection
 require_once __DIR__ . '/../db/db.php';
 
-
-// Initialize search term
-$searchTerm = '';
-if (isset($_GET['search'])) {
-    $searchTerm = htmlspecialchars($_GET['search']);
+// Check if user is logged in
+if (!isset($_SESSION['id'])) {
+    // Redirect to login page
+    header('Location: ../renter/login.php');
+    exit();
 }
 
-// Initialize pagination variables
-$limit = 8; // Number of products per page
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$offset = ($page - 1) * $limit;
+// Generate CSRF token if not set
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
-// Query to fetch products based on the search term, excluding 'pending_confirmation' status, with average rating and rating count
-$sql = "
-    SELECT 
-        p.*, 
-        IFNULL(AVG(c.rating), 0) AS average_rating, 
-        COUNT(c.rating) AS rating_count
-    FROM 
-        products p
-    LEFT JOIN 
-        comments c ON p.id = c.product_id
-    WHERE 
-        (p.name LIKE :searchTerm OR p.description LIKE :searchTerm)
-        AND TRIM(p.status) NOT IN ('pending_confirmation', 'pending_approval')
-    GROUP BY 
-        p.id
-    LIMIT :limit OFFSET :offset
-";
+// Get the user ID from the session
+$userId = $_SESSION['id'];
+
+// Get the product ID from the URL
+if (isset($_GET['id'])) {
+    $productId = intval($_GET['id']);
+} else {
+    // If no ID is provided, show an error message
+    die("Product ID not specified.");
+}
+
+// Handle form submission to add to cart
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_to_cart'])) {
+    // Optional: Verify CSRF token for add to cart action
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $message = "Invalid CSRF token.";
+    } else {
+        // Check product availability
+        $productSql = "SELECT quantity FROM products WHERE id = :productId";
+        $productStmt = $conn->prepare($productSql);
+        $productStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+        $productStmt->execute();
+        $product = $productStmt->fetch();
+
+        if (!$product || $product['quantity'] < 1) {
+            $message = "Product is currently unavailable.";
+        } else {
+            // Check if the item is already in the cart
+            $checkCartSql = "SELECT * FROM cart_items WHERE renter_id = :userId AND product_id = :productId";
+            $checkCartStmt = $conn->prepare($checkCartSql);
+            $checkCartStmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+            $checkCartStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+            $checkCartStmt->execute();
+            $existingCartItem = $checkCartStmt->fetch();
+
+            if ($existingCartItem) {
+                // Item already in cart
+                $message = "Item is already in your cart.";
+            } else {
+                // Insert the item into the cart
+                $insertCartSql = "INSERT INTO cart_items (renter_id, product_id, created_at, updated_at) VALUES (:userId, :productId, NOW(), NOW())";
+                $insertCartStmt = $conn->prepare($insertCartSql);
+                $insertCartStmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+                $insertCartStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+                if ($insertCartStmt->execute()) {
+                    $message = "Item added to cart successfully.";
+                } else {
+                    $message = "Failed to add item to cart.";
+                }
+            }
+        }
+    }
+}
+
+// Query to fetch the product
+$sql = "SELECT * FROM products WHERE id = :productId";
 $stmt = $conn->prepare($sql);
-$stmt->bindValue(':searchTerm', '%' . $searchTerm . '%');
-$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->bindParam(':productId', $productId, PDO::PARAM_INT);
 $stmt->execute();
-$allProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$product = $stmt->fetch();
 
-// Get total number of products (for pagination)
-$totalProductsSql = "
-    SELECT COUNT(*) as total FROM products p
-    WHERE 
-        (p.name LIKE :searchTerm OR p.description LIKE :searchTerm)
-        AND p.status != 'pending_confirmation'
-";
-$stmt = $conn->prepare($totalProductsSql);
-$stmt->bindValue(':searchTerm', '%' . $searchTerm . '%');
-$stmt->execute();
-$totalProducts = $stmt->fetch()['total'];
-$totalPages = ceil($totalProducts / $limit);
+if (!$product) {
+    die("Product not found.");
+}
 
 // Format the product data as needed
-$formattedProducts = [];
-foreach ($allProducts as $product) {
-    // Round the average rating to one decimal place for consistency
-    $averageRating = round(floatval($product['average_rating']), 1);
-    $ratingCount = intval($product['rating_count']);
+$productData = [
+    'id' => $product['id'],
+    'owner_id' => $product['owner_id'],
+    'name' => htmlspecialchars($product['name']),
+    'brand' => htmlspecialchars($product['brand']),
+    'description' => htmlspecialchars($product['description']),
+    'rental_price' => number_format($product['rental_price'], 2),
+    'status' => htmlspecialchars($product['status']),
+    'created_at' => $product['created_at'],
+    'updated_at' => $product['updated_at'],
+    'image' => $product['image'],
+    'quantity' => $product['quantity'],
+    'category' => htmlspecialchars($product['category']),
+    'rental_period' => htmlspecialchars($product['rental_period']),
+];
 
-    $formattedProducts[] = [
-        'id' => $product['id'],
-        'owner_id' => $product['owner_id'],
-        'name' => htmlspecialchars($product['name']),
-        'brand' => htmlspecialchars($product['brand']),
-        'description' => htmlspecialchars($product['description']),
-        'rental_price' => number_format($product['rental_price'], 2),
-        'status' => htmlspecialchars($product['status']),
-        'created_at' => $product['created_at'], // Format as needed
-        'updated_at' => $product['updated_at'], // Format as needed
-        'image' => $product['image'],
-        'quantity' => $product['quantity'],
-        'category' => htmlspecialchars($product['category']),
-        'rental_period' => htmlspecialchars($product['rental_period']),
-        'average_rating' => $averageRating,
-        'rating_count' => $ratingCount
-    ];
-}
+// Pagination Settings
+$commentsPerPage = 5;
+$page = isset($_GET['page']) && is_numeric($_GET['page']) ? intval($_GET['page']) : 1;
+$offset = ($page - 1) * $commentsPerPage;
+
+// Fetch total number of comments
+$totalCommentsSql = "SELECT COUNT(*) FROM comments WHERE product_id = :productId";
+$totalCommentsStmt = $conn->prepare($totalCommentsSql);
+$totalCommentsStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+$totalCommentsStmt->execute();
+$totalComments = $totalCommentsStmt->fetchColumn();
+$totalPages = ceil($totalComments / $commentsPerPage);
+
+// Fetch comments with pagination
+$commentsSql = "SELECT c.*, u.name AS renter_name 
+               FROM comments c
+               INNER JOIN users u ON c.renter_id = u.id
+               WHERE c.product_id = :productId
+               ORDER BY c.created_at DESC
+               LIMIT :limit OFFSET :offset";
+$commentsStmt = $conn->prepare($commentsSql);
+$commentsStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+$commentsStmt->bindParam(':limit', $commentsPerPage, PDO::PARAM_INT);
+$commentsStmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+$commentsStmt->execute();
+$comments = $commentsStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Existing head content -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>Rentbox</title>
+    <title>Rentbox - <?= $productData['name']; ?></title>
     <link rel="icon" type="image/png" href="../images/rb logo white.png">
     <link href="../vendor/bootstrap-5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../vendor/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="../css/renter/browse_style.css">
+    <link rel="stylesheet" href="../vendor/flatpickr.min.css">
+    <link rel="stylesheet" href="../other.css">
     <style>
-        .card:hover {
-            transform: scale(1.01); 
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        /* Comment Section Styles */
+        .comment-section {
+            margin-top: 40px;
         }
-
-        .hover-effect {
-    transition: transform 0.3s ease;
-    position: relative;
-}
-
-.hover-effect:hover {
-    transform: scale(1.02);
-    z-index: 2;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.product-image {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
-}
-
-/* Remove or modify existing card styles */
-.card:hover {
-    /* Remove or modify this if needed */
-}
-
-.no-products {
-    text-align: center;
-    font-size: 1.2rem;
-    color: #888;
-    padding: 20px;
-}
-
-.toast {
-    min-width: 350px;
-    border: 1px solid rgba(0,0,0,0.1);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    transition: all 0.3s ease-in-out;
-}
-
-.toast-header {
-    padding: 0.75rem 1rem;
-    border-bottom: none;
-}
-
-.toast-body {
-    padding: 1rem;
-    font-weight: 500;
-}
-
-.progress {
-    border-radius: 0 0 0.375rem 0.375rem;
-    overflow: hidden;
-}
-
+        .comment {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        .comment:last-child {
+            border-bottom: none;
+        }
+        .comment .rating {
+            color: #f8ce0b;
+        }
+        .comment .author {
+            font-weight: bold;
+        }
+        .comment .date {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .pagination {
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
+    <?php
+        require_once '../includes/navbarr.php';
+    ?>
+    <hr class="m-0 p-0 opacity-25">
 
-<body>
-    <!-- Notification Toast -->
-    <div class="position-fixed top-0 start-50 translate-middle-x mt-4" style="z-index: 9999">
-        <div id="cartToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true" 
-             data-bs-autohide="true" data-bs-delay="3000">
-            <div class="toast-header bg-success text-white">
-                <i class="bi bi-cart-check me-2"></i>
-                <strong class="me-auto">Success!</strong>
-                <small class="text-white">Just now</small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body bg-light">
-                <span class="text-success"><i class="bi bi-check-circle-fill me-2"></i>Item added to cart!</span>
-            </div>
-            <div class="progress" style="height: 3px">
-                <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
-            </div>
+    <!-- Display message if set -->
+    <?php if (isset($message)): ?>
+        <div class="alert alert-success text-center" role="alert">
+            <?php echo htmlspecialchars($message); ?>
         </div>
-    </div>
+    <?php endif; ?>
 
-
-
-    <div class="container-fluid image-bg m-0 p-0">
-        <!-- Include Navbar -->
-        <?php include '../includes/navbarr.php'; ?>
-
-        <div class="container bg-body rounded-top-5 d-flex">
-            <div class="mx-5 my-4 container-fluid d-flex justify-content-between align-items-center">
-                <p class="fs-4 fw-bolder my-auto rb">Rent Gadgets, Your Way</p>
-                <form class="d-flex gap-3 my-lg-0" method="GET" action="">
-    <input class="form-control rounded-5 px-3 shadow-sm" 
-           type="text" 
-           placeholder="Type to search..."
-           id="searchInput" 
-           name="search" 
-           value="<?php echo htmlspecialchars($searchTerm); ?>">
-    <button class="btn btn-success rounded-5 px-4 py-0 m-0 shadow-sm" type="submit">
-        Search
-    </button>
-</form>
-            </div>
-        </div>
-
-        <div class="container-fluid bg-light rounded-start-3">
-            <div class="row">
-                <!-- Include Sidebar -->
-                <?php include '../includes/sidebar.php'; ?>
-
-
-                <!-- Products Display Area -->
-                <div id="product-list" class="col-md-9 rounded-start-3 bg-body-secondary">
-    <div class="mb-3 mt-0 container rounded-start-3 bg-body-secondary">
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
-            <?php foreach ($formattedProducts as $product): ?>
-                <div class="col">
-                    <div class="border rounded-3 p-3 bg-body hover-effect">
-                        <a href="item.php?id=<?php echo $product['id']; ?>" class="text-decoration-none text-dark">
-                            <img src="../img/uploads/<?php echo $product['image']; ?>" 
-                                 alt="<?php echo htmlspecialchars($product['name']); ?>" 
-                                 class="img-thumbnail shadow-sm product-image">
-                            <p class="fs-5 mt-2 ms-2 mb-0 fw-bold"><?php echo htmlspecialchars($product['name']); ?></p>
-                        </a>
-                        <div class="d-flex justify-content-between align-items-baseline">
-                            <small class="ms-1 mb-0 text-secondary">
-                                <i class="bi bi-star-fill text-warning me-1"></i>
-                                <?php echo $product['average_rating']; ?> (<?php echo $product['rating_count']; ?>)
-                            </small>
-                            <p class="fs-5 ms-auto mb-0">₱<?php echo $product['rental_price']; ?><small class="text-secondary">/day</small></p>
+    <div class="bg-body-secondary p-4">      
+        <main class="bg-body mx-3 p-5 rounded-5 d-flex flex-column mb-5">
+            
+            <div class="d-flex flex-row mb-4">
+                <!-- Product Images Carousel -->
+                <div id="carouselIndicator" class="carousel carousel-dark slide me-3">
+                    <div class="carousel-indicators">
+                        <button type="button" data-bs-target="#carouselIndicator" data-bs-slide-to="0" class="active border rounded" aria-current="true" aria-label="Slide 1"></button>
+                        <!-- Add more indicators if you have multiple images -->
+                    </div>
+                    <div class="carousel-inner border" style="width:600px; height:400px;">
+                        <div class="carousel-item active">
+                            <img src="../img/uploads/<?php echo $productData['image']; ?>" alt="<?php echo $productData['name']; ?>" class="" style="object-fit:contain; width:600px; height:400px;">
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-    <form action="add_to_cart.php" method="POST" class="d-inline">
-        <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
-        <input type="hidden" name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
-        <input type="hidden" name="page" value="<?php echo htmlspecialchars($_GET['page'] ?? 1); ?>">
-        <button type="submit" class="btn btn-outline-dark btn-sm rounded-5 shadow-sm">
-            Add to Cart
-        </button>
-    </form>
-    <a href="item.php?id=<?php echo $product['id']; ?>" class="btn btn-success btn-sm rounded-5 shadow">
-        Rent Now
-    </a>
-</div>
+                        <!-- Add more carousel items if you have multiple images -->
+                    </div>
+                    
+                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselIndicator" data-bs-slide="prev">
+                        <div class="d-flex align-items-center position-absolute top-0" style="width: auto; height: 400px;">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </div>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#carouselIndicator" data-bs-slide="next">
+                        <div class="d-flex align-items-center position-absolute top-0" style="width: auto; height: 400px;">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </div>
+                    </button>
+                    
+                </div>
+
+                <div class="container-fluid">
+                    
+                    <div class="d-flex align-items-end gap-2 mb-2">
+                        <h1><?php echo $productData['name']; ?></h1>  
+                        <h6 class="text-body-secondary pb-1"><?php echo $productData['category']; ?></h6>  
+                    </div>
+                    
+                    <div class="gap-2">
+                        <div class="d-flex">
+                            <h5 class="pe-2">5</h5>
+                            <i class="bi bi-star-fill text-warning border-end pe-2"></i>
+
+                            <h5 class="text-primary ps-2 pe-2">20</h5>
+                            <h5 class="border-end pe-2">Ratings</h5>
+
+                            <h5 class="text-success ps-2 pe-2">21</h5>
+                            <h5 class="pe-2">Rentals</h5>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-5 mb-2 align-items-center">
+                            <h6 class="text-body-secondary" style="margin-right: 20px;">Condition</h6>  
+                            <div class="d-flex align-items-center border rounded border-success px-2 py-1 text-success">
+                                <p class="mb-0 border-success"><?php echo $productData['status']; ?></p>
+                            </div>                        
+                        </div>
+
+                        <div class="d-flex gap-2 mt-2 mb-2 align-items-center">
+                            <h6 class="text-body-secondary" style="margin-right: 20px;">Description</h6>  
+                            <div class="d-flex align-items-center border rounded border-success px-2 py-1 text-success">
+                                <p class="mb-0"><?php echo $productData['description']; ?></p>
+                            </div>                        
+                        </div>
+
+                        <!-- Rental Dates Selection -->
+                        <div class="d-flex mb-4">
+                            <h6 class="text-body-secondary" style="margin-right: 70px;">Set a Date</h6>  
+                            <div class="d-flex">
+                                <input class="border border-success border-1 rounded-start px-2 text-success" type="text" id="startDate" placeholder="Start Date" required>
+                                <input class="border border-success border-1 rounded-end px-2 text-success" type="text" id="endDate" placeholder="End Date" required>
+                            </div>
+                            
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex gap-2">
+                                <img src="../images/pfp.png" class="border rounded-circle object-fit-fill" alt="pfp" height="40px" width="40px">
+                            </div>
+                            <div class="d-flex gap-3 mb-4">
+                                <!-- Add to Cart Form -->
+                                <form method="post" action="">
+                                    <input type="hidden" name="add_to_cart" value="1">
+                                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
+                                    <button type="submit" class="px-3 py-2 btn rounded-pill shadow-sm btn-light px-3 border ms-auto">
+                                        <i class="bi bi-bag-plus pe-1"></i>
+                                        Add to Cart
+                                    </button>
+                                </form>
+
+                                <!-- Direct Checkout Form -->
+                                <form method="post" action="checkout.php" class="d-inline">
+                                    <!-- CSRF Token -->
+                                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
+                                    <!-- Direct Checkout Indicator -->
+                                    <input type="hidden" name="direct_checkout" value="1">
+                                    <!-- Product Details -->
+                                    <input type="hidden" name="product_id" value="<?= $productData['id']; ?>">
+                                    <input type="hidden" name="start_date" id="checkout_start_date" value="">
+                                    <input type="hidden" name="end_date" id="checkout_end_date" value="">
+                                    <button type="submit" class="px-3 py-2 btn rounded-pill shadow-sm btn-success d-flex align-items-center gap-2" <?php echo ($productData['quantity'] < 1) ? 'disabled' : ''; ?>>
+                                        Checkout
+                                        <span class="mb-0 ps-1 fw-bold" id="checkoutTotalPrice">₱<?php echo $productData['rental_price']; ?></span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+            <!-- Chat Button -->
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#chatModal">
+                <i class="bi bi-chat-dots-fill"></i> Chat with Owner
+            </button>
+
+            <!-- Chat Modal -->
+            <div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Chat with <?= htmlspecialchars($productData['owner_id']); ?></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="chatBox" style="height: 400px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px;">
+                                <!-- Messages will be loaded here -->
+                            </div>
+                            <form id="chatForm" class="mt-3">
+                                <div class="input-group">
+                                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
+                                    <input type="hidden" name="product_id" value="<?= $productId; ?>">
+                                    <input type="hidden" name="recipient_id" value="<?= htmlspecialchars($productData['owner_id']); ?>">
+                                    <input type="text" class="form-control" id="messageInput" name="message" placeholder="Type your message..." required>
+                                    <button class="btn btn-success" type="submit">Send</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
-            <?php endforeach; ?>
+            </div>
+
+            <!-- Chat AJAX Script -->
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const chatModal = document.getElementById('chatModal');
+                const chatBox = document.getElementById('chatBox');
+                const chatForm = document.getElementById('chatForm');
+                const messageInput = document.getElementById('messageInput');
+
+                // Function to load messages
+                function loadMessages() {
+                    const formData = new FormData();
+                    formData.append('action', 'fetch_messages');
+                    formData.append('product_id', '<?= $productId; ?>');
+                    formData.append('csrf_token', '<?= $_SESSION['csrf_token']; ?>');
+
+                    fetch('../chat_handler.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.success){
+                            chatBox.innerHTML = '';
+                            data.messages.forEach(msg => {
+                                const messageElement = document.createElement('div');
+                                messageElement.classList.add('mb-2');
+                                messageElement.innerHTML = `
+                                    <strong>${msg.sender_name}:</strong> ${msg.message} 
+                                    <small class="text-muted">${msg.created_at}</small>
+                                `;
+                                chatBox.appendChild(messageElement);
+                            });
+                            // Scroll to bottom
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        } else {
+                            chatBox.innerHTML = '<p class="text-danger">Failed to load messages.</p>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        chatBox.innerHTML = '<p class="text-danger">An error occurred while loading messages.</p>';
+                    });
+                }
+
+                // Load messages when modal is shown
+                chatModal.addEventListener('shown.bs.modal', function () {
+                    loadMessages();
+                    // Optionally, set up periodic refresh (e.g., every 30 seconds)
+                    window.chatInterval = setInterval(loadMessages, 30000);
+                });
+
+                // Clear interval when modal is hidden
+                chatModal.addEventListener('hidden.bs.modal', function () {
+                    clearInterval(window.chatInterval);
+                });
+
+                // Handle message submission
+                chatForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const message = messageInput.value.trim();
+                    if(message === ''){
+                        return;
+                    }
+
+                    const formData = new FormData(chatForm);
+                    formData.append('action', 'send_message');
+
+                    fetch('../chat_handler.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.success){
+                            messageInput.value = '';
+                            loadMessages();
+                        } else {
+                            alert(data.message || 'Failed to send message.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while sending the message.');
+                    });
+                });
+            });
+            </script>
+                </main>
+            </div>
         </div>
-    </div>
-<!-- Pagination -->
-<div class="mx-3 mb-4">
-    <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-between">
-            <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                <a class="page-link" 
-                   href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page - 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>" 
-                   aria-label="Previous">
-                    <i class="bi bi-caret-left-fill"></i>
-                </a>
-            </li>
-            <div class="d-flex gap-2">
-                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                    <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                        <a class="page-link" 
-                           href="?search=<?php echo $searchTerm; ?>&page=<?php echo $i; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>">
-                           <?php echo $i; ?>
-                        </a>
-                    </li>
-                <?php endfor; ?>
-            </div>
-            <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                <a class="page-link" 
-                   href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page + 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>" 
-                   aria-label="Next">
-                    <i class="bi bi-caret-right-fill"></i>
-                </a>
-            </li>
-        </ul>
-        <p class="text-center">Page <?php echo $page; ?> of <?php echo $totalPages; ?></p>
-    </nav>
-</div>
-                </div>
-            </div>
 
-            <!-- Recommendations Section -->
-            <div class="px-5 py-5 bg-body">
-                <div class="d-flex justify-content-between">
-                    <p class="fs-5 fw-bold mb-3 active">Explore our Recommendations</p>
-                    <div>
-                        <button class="btn btn-outline-success"><i class="bi bi-arrow-left"></i></button>
-                        <button class="btn btn-outline-success"><i class="bi bi-arrow-right"></i></button>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <!-- Add recommended products here if available -->
-                </div>
-            </div>
+        <!-- Comment Section -->
+        <div class="bg-body-secondary p-4">
+            <main class="bg-body mx-3 p-5 rounded-5">
+                <h3 class="mb-4">Comments & Ratings</h3>
 
-            <!-- Footer -->
-            <footer class="text-center text-lg-start bg-body-tertiary text-muted border-top">
+                <?php if ($totalComments > 0): ?>
+                    <?php foreach ($comments as $comment): ?>
+                        <div class="comment mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span class="author"><?= htmlspecialchars($comment['renter_name']) ?></span>
+                                <span class="date"><?= date('F j, Y, g:i a', strtotime($comment['created_at'])) ?></span>
+                            </div>
+                            <div class="rating mt-2">
+                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                    <?php if ($i <= $comment['rating']): ?>
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                    <?php else: ?>
+                                        <i class="bi bi-star text-warning"></i>
+                                    <?php endif; ?>
+                                <?php endfor; ?>
+                            </div>
+                            <p class="mt-2"><?= nl2br(htmlspecialchars($comment['comment'])) ?></p>
+                        </div>
+                    <?php endforeach; ?>
+
+                    <!-- Pagination -->
+                    <nav aria-label="Comments pagination">
+                        <ul class="pagination">
+                            <!-- Previous Button -->
+                            <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
+                                <a class="page-link" href="?id=<?= $productId ?>&page=<?= $page - 1 ?>" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+
+                            <!-- Page Numbers -->
+                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                <li class="page-item <?= ($i == $page) ? 'active' : '' ?>">
+                                    <a class="page-link" href="?id=<?= $productId ?>&page=<?= $i ?>"><?= $i ?></a>
+                                </li>
+                            <?php endfor; ?>
+
+                            <!-- Next Button -->
+                            <li class="page-item <?= ($page >= $totalPages) ? 'disabled' : '' ?>">
+                                <a class="page-link" href="?id=<?= $productId ?>&page=<?= $page + 1 ?>" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                <?php else: ?>
+                    <p>No comments yet. Be the first to comment!</p>
+                <?php endif; ?>
+            </main>
+        </div>
+
+        <footer>
             <div class="d-flex flex-column flex-sm-row justify-content-between py-2 border-top">
                 <p class="ps-3">© 2024 Rentbox. All rights reserved.</p>
                 <ul class="list-unstyled d-flex pe-3">
@@ -301,64 +475,76 @@ foreach ($allProducts as $product) {
                     <li class="ms-3"><a href=""><i class="bi bi-linkedin text-body"></i></a></li>
                 </ul>
             </div>
-            </footer>
-        </div>
-    </div>
+        </footer>
 
-
-
-    <script>
-// Toast Notification System
-document.addEventListener('DOMContentLoaded', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const toastEl = document.getElementById('cartToast');
-    const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
-    
-    const progressBar = toastEl.querySelector('.progress-bar');
-    
-    if (urlParams.has('success') || urlParams.has('error')) {
-        // Clean URL while preserving search state
-        const cleanURL = new URL(window.location);
-        ['success', 'error'].forEach(param => cleanURL.searchParams.delete(param));
-        history.replaceState({}, document.title, cleanURL);
-
-        // Configure toast
-        const isSuccess = urlParams.has('success');
-        toastEl.querySelector('.toast-header').className = `toast-header ${isSuccess ? 'bg-success' : 'bg-danger'} text-white`;
-        toastEl.querySelector('.toast-body').innerHTML = `
-            <span class="${isSuccess ? 'text-success' : 'text-danger'}">
-                <i class="bi ${isSuccess ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill'} me-2"></i>
-                ${isSuccess ? 'Item added to cart!' : 'Failed to add item!'}
-            </span>
-        `;
-        progressBar.className = `progress-bar ${isSuccess ? 'bg-success' : 'bg-danger'}`;
-
-        // Animate progress bar
-        progressBar.style.width = '100%';
-        toastEl.addEventListener('shown.bs.toast', () => {
-            progressBar.style.transition = 'width 3s linear';
-            progressBar.style.width = '0%';
+        <script src="../vendor/bootstrap-5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="../vendor/flatpickr.min.js"></script>
+        <script>
+        // Initialize flatpickr
+        flatpickr("#startDate", {
+            dateFormat: "Y-m-d", 
+            maxDate: new Date(2025, 11, 1), 
+            minDate: "today",     
+            disableMobile: true,
+            onChange: function(selectedDates, dateStr, instance) {
+                document.getElementById('checkout_start_date').value = dateStr;
+                calculateTotal();
+            }
         });
 
-        toast.show();
-    }
-});
-</script>
-
-
-
-    <script src="../vendor/bootstrap-5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Search input interaction
-        const searchInput = document.getElementById('searchInput');
-
-        searchInput.addEventListener('focus', function() {
-            this.classList.add('border-success');
+        flatpickr("#endDate", {
+            dateFormat: "Y-m-d", 
+            maxDate: new Date(2025, 11, 1), 
+            minDate: "today",     
+            disableMobile: true,
+            onChange: function(selectedDates, dateStr, instance) {
+                document.getElementById('checkout_end_date').value = dateStr;
+                calculateTotal();
+            }
         });
 
-        searchInput.addEventListener('blur', function() {
-            this.classList.remove('border-success');
+        // Calculate total rental price based on selected dates
+        function calculateTotal() {
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const totalPriceDisplay = document.getElementById('checkoutTotalPrice');
+            
+            const pricePerPeriod = <?php echo floatval($product['rental_price']); ?>; // PHP price
+            const rentalPeriod = "<?php echo strtolower($product['rental_period']); ?>"; // e.g., 'day', 'week', 'month'
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+
+            // Validate if both dates are selected and startDate is before or equal to endDate
+            if (startDateInput.value && endDateInput.value && startDate <= endDate) {
+                const timeDifference = endDate - startDate; // Milliseconds difference
+                const daysDifference = Math.ceil(timeDifference / (1000 * 3600 * 24)) + 1; // Convert to days (+1 for inclusive day)
+                
+                let periods = 1;
+                switch (rentalPeriod) {
+                    case 'day':
+                        periods = daysDifference;
+                        break;
+                    case 'week':
+                        periods = Math.ceil(daysDifference / 7);
+                        break;
+                    case 'month':
+                        periods = Math.ceil(daysDifference / 30);
+                        break;
+                    default:
+                        periods = 1;
+                }
+
+                const totalPrice = periods * pricePerPeriod; // Total cost calculation
+                totalPriceDisplay.textContent = '₱' + totalPrice.toFixed(2); // Update display
+            } else {
+                totalPriceDisplay.textContent = '₱' + pricePerPeriod.toFixed(2); // Default price per period
+            }
+        }
+
+        // Initialize total price on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            calculateTotal();
         });
-    </script>
+        </script>
 </body>
 </html>

@@ -1,0 +1,75 @@
+*{
+    font-family: 'SF Pro Display', sans-serif;
+}
+
+.image-bg{
+    background-image: url('../../images/landing.images/output.jpg');
+    background-size: cover;
+    background-position: center 70%;
+    background-repeat: no-repeat;
+    height: 100vh;
+}
+.rb{
+    color: #1F4529;
+}
+.active{
+    color:#1F4529;
+}
+.secondary{
+    color: #9bc6a6;
+}
+.secondary:hover{
+    color:#1F4529;
+}
+.btn-success{
+    color: white;
+    border-color: #1F4529;
+    background-color: #1F4529;
+}
+
+.btn-success:hover{
+    color: white;
+    border-color: #689457;
+    background-color: #689457;
+}
+
+.btn-success:focus, .btn-success.focus{
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.5);
+}
+
+.btn-outline-success {
+    color: #1F4529;
+    border-color: #1F4529;
+}
+
+.btn-outline-success:hover {
+    color: white;
+    background-color: #1F4529;
+    border-color: #1F4529;
+}
+
+.btn-success:focus, .btn-success.focus{
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.5);
+}
+.gradient-success:hover{
+background: linear-gradient(90deg,#1f4529,#16301e,#0c1b11);
+background-size: 180% 180%;
+animation: gradient-animation 2s ease infinite;
+border: linear-gradient(90deg,#1f4529,#16301e,#0c1b11);
+}
+@keyframes gradient-animation {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+.pfp{
+    width: 90px;
+    height: 90px;
+}

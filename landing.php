@@ -24,8 +24,17 @@
                 </a>
                 <!-- links -->
                 <div class="me-5 p-1 d-flex align-items-center">
-                    <a class="fw-medium ms-auto me-4 link-success link-offset-2 link-underline-opacity-0 link-underline-opacity-100-hover" href="renter/browse.php">Start Renting</a> 
-                    <a class="fw-medium ms-auto me-4 link-success link-offset-2 link-underline-opacity-0 link-underline-opacity-100-hover" style="--bs-icon-link-transform: translate3d(0, -.125rem, 0);" href="landing.owner.php">Become an Owner</a> 
+                <?php
+// Check if the user is logged in
+if (!isset($_SESSION['user_id'])):
+?>
+    <a class="fw-medium ms-auto me-4 link-success link-offset-2 link-underline-opacity-0 link-underline-opacity-100-hover" href="login.php?redirect=start_renting">Start Renting</a> 
+    <a class="fw-medium ms-auto me-4 link-success link-offset-2 link-underline-opacity-0 link-underline-opacity-100-hover" href="login.php?redirect=become_owner">Become an Owner</a>
+<?php else: ?>
+    <!-- If logged in, show actual links -->
+    <a class="fw-medium ms-auto me-4 link-success link-offset-2 link-underline-opacity-0 link-underline-opacity-100-hover" href="renter/browse.php">Start Renting</a>
+    <a class="fw-medium ms-auto me-4 link-success link-offset-2 link-underline-opacity-0 link-underline-opacity-100-hover" href="landing.owner.php">Become an Owner</a>
+<?php endif; ?>
 
                     <?php if (!isset($_SESSION['id'])): ?>
                     <div>

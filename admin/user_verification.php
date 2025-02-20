@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF Token validation
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $_SESSION['error_message'] = "Invalid CSRF token.";
-        header("Location: verification-confirmation.php");
+        header("Location: user-confirmation.php");
         exit();
     }
 
@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     if ($adminResult && $adminResult['adminCount'] > 0) {
                         $_SESSION['error_message'] = "User cannot be approved because an admin with the same first and last name already exists.";
-                        header("Location: verification-confirmation.php");
+                        header("Location: user-confirmation.php");
                         exit();
                     }
                 }
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['error_message'] = "Failed to reject the user. They may not exist.";
             }
         }
-        header("Location: verification-confirmation.php");
+        header("Location: user-confirmation.php");
         exit();
     }
 }
@@ -114,7 +114,7 @@ $pendingUsers = $stmt->fetchAll();
     </style>
 </head>
 <body>
-<?php require_once 'includes/owner-header-sidebar.php'; ?>
+<?php include '../includes/admin-navbar.php'; ?>
 <div class="main-content">
     <div class="container">
         <h2 class="mb-4">User Verification</h2>

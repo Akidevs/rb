@@ -5,31 +5,24 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require_once 'db/db.php';
 
-// Initialize variables
 $email = '';
 $password = '';
 $errorMessage = '';
 
-// Check if the form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Get user input and sanitize
     $email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL);
-    $password = $_POST['password']; // Allow all characters in password
+    $password = $_POST['password'];
 
     if (!$email) {
         $errorMessage = 'Please enter a valid email address.';
     } else {
-        // Query to check if the email exists in the users table
         $sql = "SELECT * FROM users WHERE email = :email LIMIT 1";
         $stmt = $conn->prepare($sql);
         $stmt->bindValue(':email', $email);
         $stmt->execute();
         $user = $stmt->fetch();
 
-        // Check if user exists and verify password
         if ($user && password_verify($password, $user['password'])) {
-
-            // For renter accounts, check the user_verification table
             if ($user['role'] === 'renter') {
                 $sql2 = "SELECT verification_status FROM user_verification WHERE user_id = :user_id LIMIT 1";
                 $stmt2 = $conn->prepare($sql2);
@@ -37,42 +30,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt2->execute();
                 $verification = $stmt2->fetch();
 
-                // If a verification record exists and its status is not 'verified'
                 if ($verification && $verification['verification_status'] !== 'verified') {
                     $errorMessage = 'Your account is pending verification. Please wait for admin approval.';
                 }
             }
-            
-            // If there is no error, proceed with login
+
             if (!$errorMessage) {
-                // Start session and set user data
                 $_SESSION['id'] = $user['id'];
                 $_SESSION['role'] = $user['role'];
-                // Use "name" (or "username" if available)
                 $_SESSION['username'] = isset($user['username']) ? $user['username'] : $user['name'];
-
-                // Regenerate session ID to prevent session fixation
                 session_regenerate_id(true);
 
-                // Redirect based on user role
                 switch ($user['role']) {
                     case 'admin':
-                        header('Location: admin/dashboard.php'); // Redirect to admin dashboard
+                        header('Location: admin/dashboard.php');
                         break;
                     case 'owner':
-                        header('Location: owner/dashboard.php'); // Redirect to owner dashboard
+                        header('Location: owner/dashboard.php');
                         break;
                     case 'renter':
-                        header('Location: renter/browse.php'); // Redirect to renter browse page
+                        header('Location: renter/browse.php');
                         break;
                     default:
                         header('Location: logout.php');
                         break;
                 }
-                exit(); // Stop further execution after redirection
+                exit();
             }
         } else {
-            // Incorrect email or password
             $errorMessage = 'Invalid email or password.';
         }
     }

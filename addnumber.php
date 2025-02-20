@@ -1,4 +1,9 @@
 <?php
+error_reporting(E_ALL);  // Report all errors
+ini_set('display_errors', 1);  // Display errors on screen
+require_once 'vendor/autoload.php';  // Adjust the path if needed
+use Twilio\Rest\Client;
+
 session_start();
 require_once 'db/db.php'; // Ensure this file creates a PDO instance in $conn
 
@@ -27,10 +32,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     ];
 
     if ($stmt->execute($params)) {
-        // Instead of sending OTP via Telesign, just store it in session for later use
-        $_SESSION['generated_otp'] = $otp;  // Store OTP in session for verification
-        header("Location: addnumber_verify.php"); // Redirect to OTP verification page
-        exit;
+        // Twilio WhatsApp credentials (replace with your actual SID, Auth Token, and WhatsApp-enabled number)
+        $sid    = 'AC861a4e838af059cf50aead5bff20ba3b';
+        $token  = '5e41a5e4cad95ae72ba52f9c06d800f4';
+        $from   = 'whatsapp:+14155238886'; // Twilio's WhatsApp-enabled number from the Sandbox
+        $to     = 'whatsapp:+63' . $mobile_number; // Recipient's phone number with the Philippines country code
+
+        // Instantiate the Twilio client
+        $client = new Client($sid, $token);
+
+        // Send OTP via WhatsApp
+        try {
+            $message = $client->messages->create(
+                $to,  // Recipient's WhatsApp number
+                [
+                    'from' => $from,  // Your Twilio WhatsApp-enabled number
+                    'body' => "Your Rentbox OTP code is: $otp" // The OTP message
+                ]
+            );
+            $_SESSION['generated_otp'] = $otp;  // Store OTP in session for verification
+            header("Location: addnumber_verify.php"); // Redirect to OTP verification page
+            exit;
+        } catch (Exception $e) {
+            $error = "Error sending OTP via WhatsApp: " . $e->getMessage();
+        }
     } else {
         $error = "Error updating mobile number.";
     }

@@ -56,7 +56,7 @@ $supportRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../admin/includes/owner-header-sidebar.php'; ?>
+<?php include '../includes/admin-navbar.php'; ?>
 
     <div class="container-fluid">
         <div class="row">

@@ -1,5 +1,6 @@
 <?php
-    require_once 'includes/owner-header-sidebar.php'; // Includes header and sidebar
+require_once 'includes/auth.php';
+require_once '../db/db.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -35,6 +36,7 @@
     </style>
 </head>
 <body>
+<?php include '../includes/admin-navbar.php'; ?>
 
 <div class="main-content">
     <div class="container">

@@ -1,6 +1,4 @@
-<?php
-    require_once 'includes/owner-header-sidebar.php'; // Includes header and sidebar
-?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <title>Notifications</title>
+    <?php include '../includes/admin-navbar.php'; ?>
     <style>
         body {
             font-family: Arial, sans-serif;

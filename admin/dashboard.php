@@ -131,7 +131,7 @@ if (!$stats) {
     </style>
 </head>
 <body>
-    <?php include '../admin/includes/owner-header-sidebar.php'; ?>
+<?php include '../includes/admin-navbar.php'; ?>
 
     <div class="container-fluid">
         <div class="row">

@@ -21,6 +21,12 @@ if ($conn->connect_error) {
     color: white !important;
     border-color: #6c757d !important;
 }
+
+.pagination {
+    position: relative;
+    z-index: 10; /* Ensure it's on top of other elements */
+}
+
 </style>
 
 <!-- sidebar.php -->
@@ -281,12 +287,57 @@ function updatePagination(paginationData) {
     elements.pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
 }
 
-// Page change function
 function changePage(newPage) {
-    if (newPage < 1 || newPage > <?php echo $totalPages; ?>) return; // Prevent invalid page number
+    if (isLoading) return;
     currentPage = newPage;
     updateProducts();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+// Page change function
+async function updateProducts() {
+    if (isLoading || !initializeElements()) return;
+    
+    isLoading = true;
+    showLoading();
+
+    try {
+        // Construct query parameters for fetching products
+        const queryParams = new URLSearchParams({
+            page: currentPage,
+            sort: currentSort
+        });
+        
+        if (selectedCategories.length > 0) {
+            queryParams.append('categories', selectedCategories.join(','));
+        }
+
+        const response = await fetch(`fetch_products.php?${queryParams.toString()}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        updateProductList(data.products);
+        updatePagination(data.pagination);
+        
+    } catch (error) {
+        console.error('Fetch error:', error);
+        if (elements.productList) {
+            elements.productList.innerHTML = `
+                <div class="alert alert-danger m-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Error loading products: ${error.message}
+                </div>`;
+        }
+    } finally {
+        isLoading = false;
+    }
 }
 
 

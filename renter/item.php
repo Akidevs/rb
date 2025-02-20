@@ -1,270 +1,229 @@
 <?php
-// item.php
-session_start();
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+    require_once '../include_renter/item.php';
 
-// Include database connection
-require_once __DIR__ . '/../db/db.php';
 
-// Check if user is logged in
-if (!isset($_SESSION['id'])) {
-    // Redirect to login page
-    header('Location: ../renter/login.php');
-    exit();
-}
-
-// Generate CSRF token if not set
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-// Get the user ID from the session
-$userId = $_SESSION['id'];
-
-// Get the product ID from the URL
-if (isset($_GET['id'])) {
-    $productId = intval($_GET['id']);
-} else {
-    // If no ID is provided, show an error message
-    die("Product ID not specified.");
-}
-
-// Handle form submission to add to cart
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_to_cart'])) {
-    // Optional: Verify CSRF token for add to cart action
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        $message = "Invalid CSRF token.";
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    
+    // Get the user ID from the session
+    $userId = $_SESSION['id'];
+    
+    // Get the product ID from the URL
+    if (isset($_GET['id'])) {
+        $productId = intval($_GET['id']);
     } else {
-        // Check product availability
-        $productSql = "SELECT quantity FROM products WHERE id = :productId";
-        $productStmt = $conn->prepare($productSql);
-        $productStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
-        $productStmt->execute();
-        $product = $productStmt->fetch();
-
-        if (!$product || $product['quantity'] < 1) {
-            $message = "Product is currently unavailable.";
+        // If no ID is provided, show an error message
+        die("Product ID not specified.");
+    }
+    
+    // Handle form submission to add to cart
+    if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_to_cart'])) {
+        // Optional: Verify CSRF token for add to cart action
+        if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+            $message = "Invalid CSRF token.";
         } else {
-            // Check if the item is already in the cart
-            $checkCartSql = "SELECT * FROM cart_items WHERE renter_id = :userId AND product_id = :productId";
-            $checkCartStmt = $conn->prepare($checkCartSql);
-            $checkCartStmt->bindParam(':userId', $userId, PDO::PARAM_INT);
-            $checkCartStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
-            $checkCartStmt->execute();
-            $existingCartItem = $checkCartStmt->fetch();
-
-            if ($existingCartItem) {
-                // Item already in cart
-                $message = "Item is already in your cart.";
+            // Check product availability
+            $productSql = "SELECT quantity FROM products WHERE id = :productId";
+            $productStmt = $conn->prepare($productSql);
+            $productStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+            $productStmt->execute();
+            $product = $productStmt->fetch();
+    
+            if (!$product || $product['quantity'] < 1) {
+                $message = "Product is currently unavailable.";
             } else {
-                // Insert the item into the cart
-                $insertCartSql = "INSERT INTO cart_items (renter_id, product_id, created_at, updated_at) VALUES (:userId, :productId, NOW(), NOW())";
-                $insertCartStmt = $conn->prepare($insertCartSql);
-                $insertCartStmt->bindParam(':userId', $userId, PDO::PARAM_INT);
-                $insertCartStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
-                if ($insertCartStmt->execute()) {
-                    $message = "Item added to cart successfully.";
+                // Check if the item is already in the cart
+                $checkCartSql = "SELECT * FROM cart_items WHERE renter_id = :userId AND product_id = :productId";
+                $checkCartStmt = $conn->prepare($checkCartSql);
+                $checkCartStmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+                $checkCartStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+                $checkCartStmt->execute();
+                $existingCartItem = $checkCartStmt->fetch();
+    
+                if ($existingCartItem) {
+                    // Item already in cart
+                    $message = "Item is already in your cart.";
                 } else {
-                    $message = "Failed to add item to cart.";
+                    // Insert the item into the cart
+                    $insertCartSql = "INSERT INTO cart_items (renter_id, product_id, created_at, updated_at) VALUES (:userId, :productId, NOW(), NOW())";
+                    $insertCartStmt = $conn->prepare($insertCartSql);
+                    $insertCartStmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+                    $insertCartStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+                    if ($insertCartStmt->execute()) {
+                        $message = "Item added to cart successfully.";
+                    } else {
+                        $message = "Failed to add item to cart.";
+                    }
                 }
             }
         }
     }
-}
-
-// Query to fetch the product
-$sql = "SELECT * FROM products WHERE id = :productId";
-$stmt = $conn->prepare($sql);
-$stmt->bindParam(':productId', $productId, PDO::PARAM_INT);
-$stmt->execute();
-$product = $stmt->fetch();
-
-if (!$product) {
-    die("Product not found.");
-}
-
-// Format the product data as needed
-$productData = [
-    'id' => $product['id'],
-    'owner_id' => $product['owner_id'],
-    'name' => htmlspecialchars($product['name']),
-    'brand' => htmlspecialchars($product['brand']),
-    'description' => htmlspecialchars($product['description']),
-    'rental_price' => number_format($product['rental_price'], 2),
-    'status' => htmlspecialchars($product['status']),
-    'created_at' => $product['created_at'],
-    'updated_at' => $product['updated_at'],
-    'image' => $product['image'],
-    'quantity' => $product['quantity'],
-    'category' => htmlspecialchars($product['category']),
-    'rental_period' => htmlspecialchars($product['rental_period']),
-];
-
-// Pagination Settings
-$commentsPerPage = 5;
-$page = isset($_GET['page']) && is_numeric($_GET['page']) ? intval($_GET['page']) : 1;
-$offset = ($page - 1) * $commentsPerPage;
-
-// Fetch total number of comments
-$totalCommentsSql = "SELECT COUNT(*) FROM comments WHERE product_id = :productId";
-$totalCommentsStmt = $conn->prepare($totalCommentsSql);
-$totalCommentsStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
-$totalCommentsStmt->execute();
-$totalComments = $totalCommentsStmt->fetchColumn();
-$totalPages = ceil($totalComments / $commentsPerPage);
-
-// Fetch comments with pagination
-$commentsSql = "SELECT c.*, u.name AS renter_name 
-               FROM comments c
-               INNER JOIN users u ON c.renter_id = u.id
-               WHERE c.product_id = :productId
-               ORDER BY c.created_at DESC
-               LIMIT :limit OFFSET :offset";
-$commentsStmt = $conn->prepare($commentsSql);
-$commentsStmt->bindParam(':productId', $productId, PDO::PARAM_INT);
-$commentsStmt->bindParam(':limit', $commentsPerPage, PDO::PARAM_INT);
-$commentsStmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-$commentsStmt->execute();
-$comments = $commentsStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Query to fetch the product
+    $sql = "SELECT * FROM products WHERE id = :productId";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':productId', $productId, PDO::PARAM_INT);
+    $stmt->execute();
+    $product = $stmt->fetch();
+    
+    if (!$product) {
+        die("Product not found.");
+    }
+    
+    // Format the product data as needed
+    $productData = [
+        'id' => $product['id'],
+        'owner_id' => $product['owner_id'],
+        'name' => htmlspecialchars($product['name']),
+        'brand' => htmlspecialchars($product['brand']),
+        'description' => htmlspecialchars($product['description']),
+        'rental_price' => number_format($product['rental_price'], 2),
+        'status' => htmlspecialchars($product['status']),
+        'created_at' => $product['created_at'],
+        'updated_at' => $product['updated_at'],
+        'image' => $product['image'],
+        'quantity' => $product['quantity'],
+        'category' => htmlspecialchars($product['category']),
+        'rental_period' => htmlspecialchars($product['rental_period']),
+    ];
+    
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <!-- Existing head content -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>Rentbox - <?= $productData['name']; ?></title>
+    <title>Rentbox</title>
     <link rel="icon" type="image/png" href="../images/rb logo white.png">
     <link href="../vendor/bootstrap-5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../vendor/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/renter/style.css">
     <link rel="stylesheet" href="../vendor/flatpickr.min.css">
-    <link rel="stylesheet" href="../css/renter/browse_style.css">
-
-    <link rel="stylesheet" href="../other.css">
-    <style>
-        /* Comment Section Styles */
-        .comment-section {
-            margin-top: 40px;
-        }
-        .comment {
-            padding: 15px;
-            border-bottom: 1px solid #ddd;
-        }
-        .comment:last-child {
-            border-bottom: none;
-        }
-        .comment .rating {
-            color: #f8ce0b;
-        }
-        .comment .author {
-            font-weight: bold;
-        }
-        .comment .date {
-            font-size: 0.9em;
-            color: #6c757d;
-        }
-        .pagination {
-            justify-content: center;
-        }
-    </style>
 </head>
-<body>
-    <?php
-        require_once '../includes/navbarr.php';
-    ?>
-    <hr class="m-0 p-0 opacity-25">
 
-    <!-- Display message if set -->
-    <?php if (isset($message)): ?>
+<body>
+
+    <div class="container-fluid image-bg m-0 p-0">
+        
+        <!-- Navbar Section -->
+        <?php require_once '../includes/navbarr.php'; ?>
+
+            <?php if (isset($message)): ?>
         <div class="alert alert-success text-center" role="alert">
             <?php echo htmlspecialchars($message); ?>
         </div>
     <?php endif; ?>
-
-    <div class="bg-body-secondary p-4">      
-        <main class="bg-body mx-3 p-5 rounded-5 d-flex flex-column mb-5">
-            
-            <div class="d-flex flex-row mb-4">
-                <!-- Product Images Carousel -->
-                <div id="carouselIndicator" class="carousel carousel-dark slide me-3">
-                    <div class="carousel-indicators">
-                        <button type="button" data-bs-target="#carouselIndicator" data-bs-slide-to="0" class="active border rounded" aria-current="true" aria-label="Slide 1"></button>
-                        <!-- Add more indicators if you have multiple images -->
-                    </div>
-                    <div class="carousel-inner border" style="width:600px; height:400px;">
-                        <div class="carousel-item active">
-                            <img src="../img/uploads/<?php echo $productData['image']; ?>" alt="<?php echo $productData['name']; ?>" class="" style="object-fit:contain; width:600px; height:400px;">
+        
+        <!-- Body Section -->
+        <div class="bg-body-secondary p-4 shadow-lg">
+            <div class="row container-fluid m-0 p-0 gap-3">
+                
+                <!-- Image Carousel -->
+                <div class="col-4 bg-body p-4 rounded-3 shadow-sm m-0">
+                    <div id="carouselIndicators" class="carousel carousel-dark slide">
+                        <div class="carousel-indicators">
+                            <?php
+                            foreach ($images as $index => $image) {
+                                echo '<button type="button" data-bs-target="#carouselIndicators" data-bs-slide-to="' . $index . '" class="' . ($index === 0 ? 'active' : '') . '" aria-current="true" aria-label="Slide ' . ($index + 1) . '"></button>';
+                            }
+                            ?>
                         </div>
-                        <!-- Add more carousel items if you have multiple images -->
-                    </div>
-                    
-                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselIndicator" data-bs-slide="prev">
-                        <div class="d-flex align-items-center position-absolute top-0" style="width: auto; height: 400px;">
+                        <div class="carousel-inner border rounded-3 object-fit-cover shadow-sm border border-3">
+                            <?php
+                            foreach ($images as $index => $image) {
+                                echo '<div class="carousel-item ' . ($index === 0 ? 'active' : '') . '">';
+                                echo '<img src="../img/uploads/' . htmlspecialchars($image) . '" class="d-block w-100" alt="...">';
+                                echo '</div>';
+                            }
+                            ?>
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselIndicators" data-bs-slide="prev">
                             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                             <span class="visually-hidden">Previous</span>
-                        </div>
-                    </button>
-                    <button class="carousel-control-next" type="button" data-bs-target="#carouselIndicator" data-bs-slide="next">
-                        <div class="d-flex align-items-center position-absolute top-0" style="width: auto; height: 400px;">
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#carouselIndicators" data-bs-slide="next">
                             <span class="carousel-control-next-icon" aria-hidden="true"></span>
                             <span class="visually-hidden">Next</span>
-                        </div>
-                    </button>
-                    
+                        </button>
+                    </div>
                 </div>
 
-                <div class="container-fluid">
-                    
-                    <div class="d-flex align-items-end gap-2 mb-2">
-                        <h1><?php echo $productData['name']; ?></h1>  
-                        <h6 class="text-body-secondary pb-1"><?php echo $productData['category']; ?></h6>  
-                    </div>
-                    
-                    <div class="gap-2">
+                <!-- Product Info Section -->
+                <div class="col-5 bg-body p-4 rounded-3 shadow-sm m-0">
+                    <div class="m-0 p-0">
+                        <div class="d-flex justify-content-end gap-1">
+                            <a href="#" class="link-success link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover">Browse</a>
+                            <p class="text-secondary"> > </p>
+                            <a href="#" class="link-success link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover">
+                                <?php echo htmlspecialchars($product['name'] ?? 'Product Name Not Available'); ?>
+                            </a>
+                        </div>
+                        <div class="d-flex gap-2 mb-2 align-items-end">
+                            <h1 class="display-6 fw-bold m-0 p-0"><?php echo htmlspecialchars($product['name'] ?? 'Product Name Not Available'); ?></h1>
+                            <div class="m-0 p-0">
+                                <a href="#" class="btn btn-outline-secondary m-0 opacity-50 m-0 p-1"><small class="m-0 p-0"><?php echo htmlspecialchars($product['category'] ?? 'Category Not Available'); ?></small></a>
+                            </div>
+                        </div>
                         <div class="d-flex">
-                            <h5 class="pe-2">5</h5>
-                            <i class="bi bi-star-fill text-warning border-end pe-2"></i>
-
-                            <h5 class="text-primary ps-2 pe-2">20</h5>
-                            <h5 class="border-end pe-2">Ratings</h5>
-
-                            <h5 class="text-success ps-2 pe-2">21</h5>
-                            <h5 class="pe-2">Rentals</h5>
+                            <p class="me-1 text-decoration-none"><?php echo $average_rating; ?></p>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <p class="mx-2">|</p>
+                            <a href="#" class="me-1 text-decoration-none text-success"><?php echo count($comments); ?> Reviews</a>
                         </div>
 
-                        <div class="d-flex gap-2 mt-5 mb-2 align-items-center">
-                            <h6 class="text-body-secondary" style="margin-right: 20px;">Condition</h6>  
-                            <div class="d-flex align-items-center border rounded border-success px-2 py-1 text-success">
-                                <p class="mb-0 border-success"><?php echo $productData['status']; ?></p>
-                            </div>                        
-                        </div>
+                        <!-- Price and Availability Section -->
+                        <div class="row d-flex align-items-bottom">
+                            <div class="border col-5 rounded-3 shadow-sm p-0 mb-3 mt-2 ms-3">
+                                <div class="m-0 <?php echo $availabilityClass; ?> align-items-stretch border text-center">
+                                    <p class="active fs-6 my-2"><?php echo $availabilityText; ?></p>
+                                </div>
 
-                        <div class="d-flex gap-2 mt-2 mb-2 align-items-center">
-                            <h6 class="text-body-secondary" style="margin-right: 20px;">Description</h6>  
-                            <div class="d-flex align-items-center border rounded border-success px-2 py-1 text-success">
-                                <p class="mb-0"><?php echo $productData['description']; ?></p>
-                            </div>                        
-                        </div>
-
-                        <!-- Rental Dates Selection -->
-                        <div class="d-flex mb-4">
-                            <h6 class="text-body-secondary" style="margin-right: 70px;">Reserve</h6>  
-                            <div class="d-flex">
-                                <input class="border border-success border-1 rounded-start px-2 text-success" type="text" id="startDate" placeholder="Start Date" required>
-                                <input class="border border-success border-1 rounded-end px-2 text-success" type="text" id="endDate" placeholder="End Date" required>
+                                <div class="d-flex justify-content-center align-items-center">
+                                    <p class="fs-3 fw-bold m-0 p-0 active">₱<?php echo htmlspecialchars($product['rental_price']); ?></p>
+                                    <p class="fs-3 fw-bold m-0 p-0 active">/</p>
+                                    <p class="fs-3 fw-bold m-0 p-0 active"><?php echo htmlspecialchars($product['rental_period']); ?></p>
+                                </div>
                             </div>
-                            
                         </div>
 
-                        <div class="d-flex justify-content-between">
-                            <div class="d-flex gap-2">
-                                <img src="../images/pfp.png" class="border rounded-circle object-fit-fill" alt="pfp" height="40px" width="40px">
+                        <!-- Product Description Section -->
+                        <small class="text-secondary p-0 mb-2">Product Description:</small>
+                        <p class="fs-6 p-0 mb-3"><?php echo htmlspecialchars($product_description); ?></p>
+
+                        <!-- Additional Product Info -->
+                        <div class="row d-flex">
+                            <div class="col-4">
+                                <small class="text-secondary p-0 mb-2">Brand/Model:</small>
+                                <div class="d-flex gap-2 mt-1 mb-3">
+                                    <a href="#" class="btn btn-outline-success m-0 p-1">Apple</a>
+                                    <a href="#" class="btn btn-outline-success m-0 p-1">Airpods Pro 1</a>
+                                </div>
+
+                                <small class="text-secondary p-0 mb-2">Comes with:</small>
+                                <div class="d-flex gap-2 mt-1">
+                                    <a href="#" class="btn btn-outline-success m-0 p-1">Case</a>
+                                    <a href="#" class="btn btn-outline-success m-0 p-1">IOS Charger</a>
+                                </div>
                             </div>
-                            <div class="d-flex gap-3 mb-4">
-                                <!-- Add to Cart Form -->
-                                <form method="post" action="">
+
+                            <!-- Reservation Form -->
+                            <div class="col-8 d-flex pe-2 d-flex flex-column">
+                                <div class="row mb-5 ps-3 pe-5 me-5">
+                                    <small class="text-secondary p-0 mb-2">Set a Date:</small>
+                                    <div class="d-flex flex-column m-0 p-0">
+                                    <input class="border border-success border-1 rounded-start px-2 text-success" type="text" id="startDate" placeholder="Start Date" required>
+                                    <input class="border border-success border-1 rounded-end px-2 text-success" type="text" id="endDate" placeholder="End Date" required>
+                                    </div>
+                                </div>
+
+
+
+                                <div class="d-flex justify-content-end">
+    <!-- Add to Cart Form -->
+    <form method="post" action="">
                                     <input type="hidden" name="add_to_cart" value="1">
                                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
                                     <button type="submit" class="px-3 py-2 btn rounded-pill shadow-sm btn-light px-3 border ms-auto">
@@ -273,8 +232,8 @@ $comments = $commentsStmt->fetchAll(PDO::FETCH_ASSOC);
                                     </button>
                                 </form>
 
-                                <!-- Direct Checkout Form -->
-                                <form method="post" action="checkout.php" class="d-inline">
+    <!-- Rent Now Form (Checkout) -->
+    <form method="post" action="checkout.php" class="d-inline">
                                     <!-- CSRF Token -->
                                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
                                     <!-- Direct Checkout Indicator -->
@@ -288,200 +247,173 @@ $comments = $commentsStmt->fetchAll(PDO::FETCH_ASSOC);
                                         <span class="mb-0 ps-1 fw-bold" id="checkoutTotalPrice">₱<?php echo $productData['rental_price']; ?></span>
                                     </button>
                                 </form>
+</div>
                             </div>
                         </div>
-            <!-- Chat Button -->
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#chatModal">
-                <i class="bi bi-chat-dots-fill"></i> Chat with Owner
-            </button>
+                    </div>
+                </div>
 
-            <!-- Chat Modal -->
-            <div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Chat with <?= htmlspecialchars($productData['owner_id']); ?></h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div id="chatBox" style="height: 400px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px;">
-                                <!-- Messages will be loaded here -->
-                            </div>
-                            <form id="chatForm" class="mt-3">
-                                <div class="input-group">
-                                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
-                                    <input type="hidden" name="product_id" value="<?= $productId; ?>">
-                                    <input type="hidden" name="recipient_id" value="<?= htmlspecialchars($productData['owner_id']); ?>">
-                                    <input type="text" class="form-control" id="messageInput" name="message" placeholder="Type your message..." required>
-                                    <button class="btn btn-success" type="submit">Send</button>
+                <!-- Advertisements Section -->
+                <div class="col bg-body p-4 rounded-3 shadow-sm m-0">
+                    <img src="" alt="advertisement" class="img-thumbnail">
+                    promo code
+                </div>
+            </div>
+
+            <!-- Product Ratings and Owner Information Section -->
+            <div class="row container-fluid mt-3 mx-0 bg-body rounded-3 shadow-sm p-4 gap-3 d-flex align-items-center">
+                <div class="col-1 d-flex justify-content-center align-items-center ps-4">
+                    <?php
+                        // Fetch owner's profile picture from the users table
+                        $query = "SELECT profile_picture FROM users WHERE id = ?";
+                        $stmt = $conn->prepare($query);
+                        $stmt->execute([$owner_id]);
+                        $owner_profile_picture = $stmt->fetchColumn();
+                        $profile_picture = $owner_profile_picture ? "../" . htmlspecialchars($owner_profile_picture) : "images/user/pfp.png";
+                    ?>
+                    <img src="<?php echo $profile_picture; ?>" alt="Owner Profile Picture" class="rounded-circle border shadow-sm img-thumbnail">
+                </div>
+                <div class="col-2 d-flex flex-column border-end m-0 p-0 align-self-start">
+                    <a href="#" class="fs-5 text-decoration-none text-dark fw-bold m-0 p-0"><?php echo htmlspecialchars($owner_name); ?></a>
+                    <p class="fs-6 text-secondary p-0"><?php echo $active_status; ?></p> <!-- Active status -->
+                    <div class="d-flex gap-2">
+                        <a href="#" class="btn btn-success m-0 px-2">Message</a>
+                        <a href="#" class="btn btn-outline-secondary m-0 px-2">View Profile</a>
+                    </div>
+                </div>
+                <div class="col-7 ps-0 m-0 flex-grow-1">
+                    <div class="row">
+                        <div class="col">
+                            <div class="row">
+                                <div class="col d-flex flex-column justify-content-between">
+                                    <p class="fs-6 text-secondary m-0 p-0">Rating</p>
+                                    <p class="fs-6 text-secondary m-0 p-0">Rentals</p>
                                 </div>
-                            </form>
+                                <div class="col d-flex flex-column justify-content-between">
+                                    <a href="#" class="fs-6 text-success m-0 p-0 text-decoration-none"><?php echo $total_ratings; ?></a> <!-- Total Ratings -->
+                                    <a href="#" class="fs-6 text-success mt-3 p-0 text-decoration-none"><?php echo $rental_count; ?> Rentals</a> <!-- Rental Count -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="row">
+                                <div class="col d-flex flex-column justify-content-between">
+                                    <p class="fs-6 text-secondary m-0 p-0">Response Rate</p>
+                                    <p class="fs-6 text-secondary m-0 p-0">Response Time</p>
+                                </div>
+                                <div class="col d-flex flex-column justify-content-between">
+                                    <a href="#" class="fs-6 text-success m-0 p-0 text-decoration-none">85%</a>
+                                    <a href="#" class="fs-6 text-success mt-3 p-0 text-decoration-none">within hours</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="row">
+                                <div class="col d-flex flex-column justify-content-between">
+                                    <p class="fs-6 text-secondary m-0 p-0">Joined</p>
+                                </div>
+                                <div class="col d-flex flex-column justify-content-between">
+                                    <a href="#" class="fs-6 text-success m-0 p-0 text-decoration-none"><?php echo $joined_duration; ?></a> <!-- Joined Duration -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Chat AJAX Script -->
-            <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const chatModal = document.getElementById('chatModal');
-                const chatBox = document.getElementById('chatBox');
-                const chatForm = document.getElementById('chatForm');
-                const messageInput = document.getElementById('messageInput');
+            <!-- Product Specification Section -->
+            <div class="row container-fluid mt-3 mx-0 bg-body rounded-3 shadow-sm p-4 d-flex align-items-start">
+                <p class="fs-5 text-decoration-none text-dark fw-bold mb-2 p-0">Product Specification</p>
 
-                // Function to load messages
-                function loadMessages() {
-                    const formData = new FormData();
-                    formData.append('action', 'fetch_messages');
-                    formData.append('product_id', '<?= $productId; ?>');
-                    formData.append('csrf_token', '<?= $_SESSION['csrf_token']; ?>');
+                <div class="col-2 d-flex flex-column gap-3">
+                    <small class="text-secondary pt-1">Category</small>
+                    <small class="text-secondary pt-1">Available Stock</small>
+                    <small class="text-secondary pt-1">Location</small>
+                </div>
 
-                    fetch('../chat_handler.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if(data.success){
-                            chatBox.innerHTML = '';
-                            data.messages.forEach(msg => {
-                                const messageElement = document.createElement('div');
-                                messageElement.classList.add('mb-2');
-                                messageElement.innerHTML = `
-                                    <strong>${msg.sender_name}:</strong> ${msg.message} 
-                                    <small class="text-muted">${msg.created_at}</small>
-                                `;
-                                chatBox.appendChild(messageElement);
-                            });
-                            // Scroll to bottom
-                            chatBox.scrollTop = chatBox.scrollHeight;
-                        } else {
-                            chatBox.innerHTML = '<p class="text-danger">Failed to load messages.</p>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        chatBox.innerHTML = '<p class="text-danger">An error occurred while loading messages.</p>';
-                    });
-                }
+                <div class="col d-flex flex-column gap-3">
+                    <div class="d-flex gap-1 p-0 m-0">
+                        <a href="#" class="p-0 m-0 link-success link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover"><?php echo htmlspecialchars($category); ?></a>
+                    </div>
+                    <p class="fs-6 text-success m-0 p-0"><?php echo htmlspecialchars($quantity); ?></p>
 
-                // Load messages when modal is shown
-                chatModal.addEventListener('shown.bs.modal', function () {
-                    loadMessages();
-                    // Optionally, set up periodic refresh (e.g., every 30 seconds)
-                    window.chatInterval = setInterval(loadMessages, 30000);
-                });
+                    <small class="text-secondary pt-1">Location</small>
+                    <p class="fs-6 p-0">Cabato Rd., Brgy. Tetuan, Zamboanga City</p> <!-- Update location if needed -->
+                </div>
 
-                // Clear interval when modal is hidden
-                chatModal.addEventListener('hidden.bs.modal', function () {
-                    clearInterval(window.chatInterval);
-                });
-
-                // Handle message submission
-                chatForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const message = messageInput.value.trim();
-                    if(message === ''){
-                        return;
-                    }
-
-                    const formData = new FormData(chatForm);
-                    formData.append('action', 'send_message');
-
-                    fetch('../chat_handler.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if(data.success){
-                            messageInput.value = '';
-                            loadMessages();
-                        } else {
-                            alert(data.message || 'Failed to send message.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while sending the message.');
-                    });
-                });
-            });
-            </script>
-                </main>
+                <p class="fs-5 text-decoration-none text-dark fw-bold mt-5 mb-3 p-0">Owner Condition</p>
+                <p class="m-0 ps-2"><?php echo htmlspecialchars($condition_description); ?></p> <!-- Display the dynamic condition description -->
             </div>
-        </div>
 
-        <!-- Comment Section -->
-        <div class="bg-body-secondary p-4">
-            <main class="bg-body mx-3 p-5 rounded-5">
-                <h3 class="mb-4">Comments & Ratings</h3>
+            <!-- Ratings Section -->
+            <div class="row container-fluid mt-3 mx-0 bg-body rounded-3 shadow-sm pe-5 p-4 d-flex align-items-start">
+                <p class="fs-5 text-decoration-none text-dark fw-bold mb-2 p-0">Ratings</p>
 
-                <?php if ($totalComments > 0): ?>
-                    <?php foreach ($comments as $comment): ?>
-                        <div class="comment mb-3">
-                            <div class="d-flex justify-content-between">
-                                <span class="author"><?= htmlspecialchars($comment['renter_name']) ?></span>
-                                <span class="date"><?= date('F j, Y, g:i a', strtotime($comment['created_at'])) ?></span>
+                <div class="row container-fluid mt-3">
+                    <div class="col-1">
+                        <div class="d-flex flex-column align-items-center">
+                            <p class="fs-5 fw-bold m-0 p-0"><?php echo $average_rating; ?> out of 5</p>
+                            <div class="d-flex gap-1">
+                                <?php
+                                // Display filled and empty stars based on average rating
+                                for ($i = 0; $i < 5; $i++) {
+                                    echo $i < $average_rating ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-warning"></i>';
+                                }
+                                ?>
                             </div>
-                            <div class="rating mt-2">
-                                <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <?php if ($i <= $comment['rating']): ?>
-                                        <i class="bi bi-star-fill text-warning"></i>
-                                    <?php else: ?>
-                                        <i class="bi bi-star text-warning"></i>
-                                    <?php endif; ?>
-                                <?php endfor; ?>
-                            </div>
-                            <p class="mt-2"><?= nl2br(htmlspecialchars($comment['comment'])) ?></p>
                         </div>
-                    <?php endforeach; ?>
+                    </div>
 
-                    <!-- Pagination -->
-                    <nav aria-label="Comments pagination">
-                        <ul class="pagination">
-                            <!-- Previous Button -->
-                            <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
-                                <a class="page-link" href="?id=<?= $productId ?>&page=<?= $page - 1 ?>" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
+                    <div class="col-11 d-flex align-items-center gap-2">
+                        <!-- Filter buttons for ratings -->
+                        <a href="?id=<?php echo $product_id; ?>&rating=all" class="btn btn-small btn-outline-success">All</a>
+                        <a href="?id=<?php echo $product_id; ?>&rating=5" class="btn btn-small btn-outline-success">5 stars</a>
+                        <a href="?id=<?php echo $product_id; ?>&rating=4" class="btn btn-small btn-outline-success">4 stars</a>
+                        <a href="?id=<?php echo $product_id; ?>&rating=3" class="btn btn-small btn-outline-success">3 stars</a>
+                        <a href="?id=<?php echo $product_id; ?>&rating=2" class="btn btn-small btn-outline-success">2 stars</a>
+                        <a href="?id=<?php echo $product_id; ?>&rating=1" class="btn btn-small btn-outline-success">1 star</a>
+                    </div>
+                </div>
 
-                            <!-- Page Numbers -->
-                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                                <li class="page-item <?= ($i == $page) ? 'active' : '' ?>">
-                                    <a class="page-link" href="?id=<?= $productId ?>&page=<?= $i ?>"><?= $i ?></a>
-                                </li>
-                            <?php endfor; ?>
-
-                            <!-- Next Button -->
-                            <li class="page-item <?= ($page >= $totalPages) ? 'disabled' : '' ?>">
-                                <a class="page-link" href="?id=<?= $productId ?>&page=<?= $page + 1 ?>" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
+                <!-- Review Section -->
+                <?php if (empty($comments)): ?>
+                    <p class="text-center">No comments available for this product.</p> <!-- Message when no comments exist -->
                 <?php else: ?>
-                    <p>No comments yet. Be the first to comment!</p>
+                    <?php foreach ($comments as $comment): ?>
+                <div class="mt-3 d-flex">
+                    <!-- Check if the profile picture exists, otherwise use the default -->
+                    <img src="<?= htmlspecialchars($profilePic) ?>" alt="" class="rounded-circle border me-3 p-0" style="width: 40px; height: 40px;">
+                    <div class="d-flex flex-column">
+                        <p class="fs-6 fw-bold m-0 p-0"><?php echo htmlspecialchars($comment['name']); ?></p>
+                        <div class="d-flex gap-1 m-0">
+                            <!-- Dynamically display the rating stars -->
+                            <?php
+                            $rating = $comment['rating'];
+                            for ($i = 0; $i < 5; $i++) {
+                                echo $i < $rating ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-warning"></i>';
+                            }
+                            ?>
+                            <div class="d-flex gap-1 m-0">
+                                <p class="text-secondary">|</p>
+                                <p class="text-secondary"><?php echo date('Y-m-d H:i', strtotime($comment['created_at'])); ?></p>
+                            </div>
+                        </div>
+                        <p class="mt-2"><?php echo htmlspecialchars($comment['comment']); ?></p>
+                    </div>
+                </div>
+                <?php endforeach; ?>
                 <?php endif; ?>
-            </main>
+            </div>
+
         </div>
 
-        <footer>
-            <div class="d-flex flex-column flex-sm-row justify-content-between py-2 border-top">
-                <p class="ps-3">© 2024 Rentbox. All rights reserved.</p>
-                <ul class="list-unstyled d-flex pe-3">
-                    <li class="ms-3"><a href=""><i class="bi bi-facebook text-body"></i></a></li>
-                    <li class="ms-3"><a href=""><i class="bi bi-twitter text-body"></i></a></li>
-                    <li class="ms-3"><a href=""><i class="bi bi-linkedin text-body"></i></a></li>
-                </ul>
-            </div>
-        </footer>
+        <!-- Footer Section -->
+        <?php require_once '../includes/footer.php' ?>
 
-        <script src="../vendor/bootstrap-5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="../vendor/flatpickr.min.js"></script>
-        <script>
+    </div>
+    <script src="../vendor/bootstrap-5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../vendor/flatpickr.min.js"></script>
+    <script>
         // Initialize flatpickr
         flatpickr("#startDate", {
             dateFormat: "Y-m-d", 
@@ -549,4 +481,6 @@ $comments = $commentsStmt->fetchAll(PDO::FETCH_ASSOC);
         });
         </script>
 </body>
+<script src="vendor/bootstrap-5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </html>

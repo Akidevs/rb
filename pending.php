@@ -27,7 +27,15 @@ if (!isset($_SESSION['user_id'])) {
   </script>
 </head>
 <body>
-  <?php require_once 'includes/navbar.php'; ?>
+<div class="container bg-body rounded-bottom-5 d-flex mb-5 py-3 shadow">
+    <a href="browse.php">
+        <img class="ms-5 my-4" src="images/rb logo text colored.png" alt="Logo" height="50px">
+    </a>
+    <div class="my-auto mx-auto d-flex gap-3">
+    </div>
+    <div class="d-flex me-5 align-items-center gap-3">
+    </div>
+</div>
   <main class="container pending-message text-center">
     <div class="alert alert-info">
       <h4>Thank you for completing your verification steps!</h4>

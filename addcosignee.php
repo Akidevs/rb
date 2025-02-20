@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db/db.php'; // Returns PDO instance in $conn
+require_once 'db/db.php'; // Ensure this file creates a PDO instance in $conn
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: signup.php");
@@ -10,43 +10,62 @@ if (!isset($_SESSION['user_id'])) {
 $error = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Set the target upload directory.
+    // Set the target upload directory
     $uploadDir = "img/verification/";
-    
-    // Ensure the upload directory exists.
+
+    // Ensure the upload directory exists
     if (!is_dir($uploadDir)) {
         if (!mkdir($uploadDir, 0777, true)) {
             $error = "Failed to create upload directory.";
         }
     }
-    
+
     // Allowed MIME types and maximum file size (5 MB)
     $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     $maxFileSize = 5 * 1024 * 1024; // 5 MB in bytes
-    
-    // Create a finfo object for MIME type checking.
+
+    // Create a finfo object for MIME type checking
     $finfo = new finfo(FILEINFO_MIME_TYPE);
-    
-    // Process cosignee ID photo upload with validation.
-    if (isset($_FILES['cosignee_id_photo']) && $_FILES['cosignee_id_photo']['error'] === 0) {
-        if ($_FILES['cosignee_id_photo']['size'] > $maxFileSize) {
-            $error = "Cosignee ID photo must be 5MB or less.";
+
+    // Process cosignee ID front photo upload with validation
+    if (isset($_FILES['cosignee_id_front']) && $_FILES['cosignee_id_front']['error'] === 0) {
+        if ($_FILES['cosignee_id_front']['size'] > $maxFileSize) {
+            $error = "Cosignee ID front photo must be 5MB or less.";
         }
-        $mimeType = $finfo->file($_FILES['cosignee_id_photo']['tmp_name']);
+        $mimeType = $finfo->file($_FILES['cosignee_id_front']['tmp_name']);
         if (!in_array($mimeType, $allowedTypes)) {
-            $error = "Cosignee ID photo must be an image (JPEG, PNG, or GIF).";
+            $error = "Cosignee ID front photo must be an image (JPEG, PNG, or GIF).";
         }
         if (!$error) {
-            $cosigneeIdPhoto = $uploadDir . time() . "_" . basename($_FILES['cosignee_id_photo']['name']);
-            if (!move_uploaded_file($_FILES['cosignee_id_photo']['tmp_name'], $cosigneeIdPhoto)) {
-                $error = "Error uploading cosignee ID photo.";
+            $cosigneeIdFront = $uploadDir . time() . "_front_" . basename($_FILES['cosignee_id_front']['name']);
+            if (!move_uploaded_file($_FILES['cosignee_id_front']['tmp_name'], $cosigneeIdFront)) {
+                $error = "Error uploading cosignee ID front photo.";
             }
         }
     } else {
-        $error = "Error uploading cosignee ID photo.";
+        $error = "Error uploading cosignee ID front photo.";
     }
-    
-    // Process cosignee selfie upload with validation.
+
+    // Process cosignee ID back photo upload with validation
+    if (isset($_FILES['cosignee_id_back']) && $_FILES['cosignee_id_back']['error'] === 0) {
+        if ($_FILES['cosignee_id_back']['size'] > $maxFileSize) {
+            $error = "Cosignee ID back photo must be 5MB or less.";
+        }
+        $mimeType = $finfo->file($_FILES['cosignee_id_back']['tmp_name']);
+        if (!in_array($mimeType, $allowedTypes)) {
+            $error = "Cosignee ID back photo must be an image (JPEG, PNG, or GIF).";
+        }
+        if (!$error) {
+            $cosigneeIdBack = $uploadDir . time() . "_back_" . basename($_FILES['cosignee_id_back']['name']);
+            if (!move_uploaded_file($_FILES['cosignee_id_back']['tmp_name'], $cosigneeIdBack)) {
+                $error = "Error uploading cosignee ID back photo.";
+            }
+        }
+    } else {
+        $error = "Error uploading cosignee ID back photo.";
+    }
+
+    // Process cosignee selfie photo upload with validation
     if (isset($_FILES['cosignee_selfie']) && $_FILES['cosignee_selfie']['error'] === 0) {
         if ($_FILES['cosignee_selfie']['size'] > $maxFileSize) {
             $error = "Cosignee selfie must be 5MB or less.";
@@ -56,22 +75,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "Cosignee selfie must be an image (JPEG, PNG, or GIF).";
         }
         if (!$error) {
-            $cosigneeSelfie = $uploadDir . time() . "_" . basename($_FILES['cosignee_selfie']['name']);
+            $cosigneeSelfie = $uploadDir . time() . "_selfie_" . basename($_FILES['cosignee_selfie']['name']);
             if (!move_uploaded_file($_FILES['cosignee_selfie']['tmp_name'], $cosigneeSelfie)) {
-                $error = "Error uploading cosignee selfie.";
+                $error = "Error uploading cosignee selfie photo.";
             }
         }
-    } else {
-        $error = "Error uploading cosignee selfie.";
     }
-    
-    // Collect cosignee info from the form.
-    $cosignee_email        = trim($_POST['cosignee_email']);
-    $cosignee_first_name   = trim($_POST['cosignee_first_name']);
-    $cosignee_last_name    = trim($_POST['cosignee_last_name']);
+
+    // Collect cosignee info from the form
+    $cosignee_email = trim($_POST['cosignee_email']);
+    $cosignee_first_name = trim($_POST['cosignee_first_name']);
+    $cosignee_last_name = trim($_POST['cosignee_last_name']);
     $cosignee_relationship = trim($_POST['cosignee_relationship']);
-    
-    // If no errors so far, update the user_verification record.
+
+    // If no errors so far, update the user_verification record
     if (!$error) {
         $sql = "UPDATE user_verification 
                 SET cosignee_email = :cosignee_email, 
@@ -79,21 +96,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     cosignee_last_name = :cosignee_last_name, 
                     cosignee_relationship = :cosignee_relationship, 
                     cosignee_id_photo = :cosignee_id_photo, 
+                    cosignee_id_back_photo = :cosignee_id_back_photo, 
                     cosignee_selfie = :cosignee_selfie, 
                     verification_status = 'pending'
                 WHERE user_id = :user_id";
         $stmt = $conn->prepare($sql);
         $params = [
-            ':cosignee_email'        => $cosignee_email,
-            ':cosignee_first_name'   => $cosignee_first_name,
-            ':cosignee_last_name'    => $cosignee_last_name,
+            ':cosignee_email' => $cosignee_email,
+            ':cosignee_first_name' => $cosignee_first_name,
+            ':cosignee_last_name' => $cosignee_last_name,
             ':cosignee_relationship' => $cosignee_relationship,
-            ':cosignee_id_photo'     => $cosigneeIdPhoto,
-            ':cosignee_selfie'       => $cosigneeSelfie,
-            ':user_id'               => $_SESSION['user_id']
+            ':cosignee_id_photo' => $cosigneeIdFront,
+            ':cosignee_id_back_photo' => $cosigneeIdBack,
+            ':cosignee_selfie' => $cosigneeSelfie,
+            ':user_id' => $_SESSION['user_id']
         ];
         if ($stmt->execute($params)) {
-            // Redirect to pending page after finishing all verification steps.
+            // Redirect to the next step (e.g., pending page)
             header("Location: pending.php");
             exit;
         } else {
@@ -159,15 +178,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         </div>
                         <span class="badge text-bg-success text-center mx-4 mt-4 mb-2 fs-6">Cosignee Verification</span>
                         <div class="input-group mb-3 mt-2">
-                            <small class="mb-3">Upload a photo of your cosignee's valid id. View 
-                                <a href="">Valid ID list.</a></small>
-                            <label class="input-group-text rounded-start-5 btn btn-outline-success" for="cosigneeIdPhoto">Upload</label>
-                            <input type="file" name="cosignee_id_photo" class="form-control rounded-end-5 btn btn-outline-success" id="cosigneeIdPhoto" required>
-                        </div>
+    <small class="mb-3">Upload a photo of the **front** of your cosignee's valid ID
+        <a href="">Valid ID list.</a></small>
+    <label class="input-group-text rounded-start-5 btn btn-outline-success" for="cosigneeIdFront">Upload Front</label>
+    <input type="file" name="cosignee_id_front" class="form-control rounded-end-5 btn btn-outline-success" id="cosigneeIdFront" required>
+</div>
+
+<div class="input-group mb-3 mt-4">
+    <small class="mb-3">Upload a photo of the **back** of your cosignee's valid ID
+        <a href="">Valid ID list.</a></small>
+    <label class="input-group-text rounded-start-5 btn btn-outline-success" for="cosigneeIdBack">Upload Back</label>
+    <input type="file" name="cosignee_id_back" class="form-control rounded-end-5 btn btn-outline-success" id="cosigneeIdBack" required>
+</div>
                         <div class="input-group mb-3 mt-4">
                             <small class="mb-3">Upload a recent photo of your cosignee to verify ID. View 
                                 <a href="">details.</a></small>
-                            <label class="input-group-text rounded-start-5 btn btn-outline-success" for="cosigneeSelfie">Upload</label>
+                            <label class="input-group-text rounded-start-5 btn btn-outline-success" for="cosigneeSelfie">Upload Recent</label>
                             <input type="file" name="cosignee_selfie" class="form-control rounded-end-5 btn btn-outline-success" id="cosigneeSelfie" required>
                         </div>
                         <button type="submit" class="btn btn-success rounded-5 mx-5 my-3 shadow">Save & Continue</button>

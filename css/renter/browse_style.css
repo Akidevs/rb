@@ -2,6 +2,11 @@
     font-family: 'SF Pro Display', sans-serif;
 }
 
+.pagination {
+    position: relative;
+    z-index: 10; /* Ensure it's on top of other elements */
+}
+
 .image-bg{
     background-image: url('../../images/landing.images/output.jpg');
     background-size: cover;
