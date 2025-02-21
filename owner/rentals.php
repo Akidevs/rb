@@ -167,7 +167,7 @@ if (empty($_SESSION['csrf_token'])) {
         <?php foreach ($rentals as $index => $rental): ?>
             <tr>
                 <td><?= htmlspecialchars($index + 1) ?></td>
-                <td><?= htmlspecialchars($rental['renter_name'] ?? 'Unknown') ?></td>
+                <td><a href="review.php?renter_id=<?= htmlspecialchars($rental['renter_id']) ?>"><?= htmlspecialchars($rental['renter_name']) ?></a></td>
                 <td><?= htmlspecialchars($rental['product_name'] ?? 'Unknown') ?></td>
                 <td><?= htmlspecialchars($rental['start_date'] ?? 'N/A') ?></td>
                 <td><?= htmlspecialchars($rental['end_date'] ?? 'N/A') ?></td>

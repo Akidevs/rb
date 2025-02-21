@@ -43,7 +43,7 @@ $stmt->bindParam(':rentalId', $rentalId, PDO::PARAM_INT);
 $stmt->bindParam(':renterId', $renterId, PDO::PARAM_INT);
 $stmt->execute();
 
-$rental = $stmt->fetch(PDO::FETCH_ASSOC);
+$rental = $stmt->fetch();
 
 if (!$rental) {
     $_SESSION['error'] = "Rental not found or not eligible for uploading proof.";

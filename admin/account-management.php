@@ -1,18 +1,23 @@
 <?php
-require_once 'includes/owner-header-sidebar.php';
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-// Database connection
+session_start();
+
+// Database Configuration
 $servername = "localhost";
 $username = "root";
 $password = "";
 $dbname = "PROJECT";
 
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+try {
+    // Establish database connection
+    $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    error_log("Database Connection Error: " . $e->getMessage());
+    die("Database connection failed. Please try again later.");
 }
 
 // Default filter values
@@ -41,7 +46,7 @@ if (isset($_POST['search'])) {
     $search_term = $_POST['search'];
 }
 
-// SQL Query to get users based on selected filters and search term with phone number from user_verification table
+// SQL Query to get users based on selected filters and search term
 $sql = "SELECT u.*, uv.mobile_number FROM users u
         LEFT JOIN user_verification uv ON u.id = uv.user_id
         WHERE u.role LIKE '%$role_filter%' AND (u.name LIKE '%$search_term%' OR u.email LIKE '%$search_term%')
@@ -54,7 +59,7 @@ $total_sql = "SELECT COUNT(*) AS total FROM users u
               LEFT JOIN user_verification uv ON u.id = uv.user_id
               WHERE u.role LIKE '%$role_filter%' AND (u.name LIKE '%$search_term%' OR u.email LIKE '%$search_term%')";
 $total_result = $conn->query($total_sql);
-$total_users = $total_result->fetch_assoc()['total'];
+$total_users = $total_result->fetch(PDO::FETCH_ASSOC)['total'];
 $total_pages = ceil($total_users / $items_per_page);
 ?>
 
@@ -91,26 +96,22 @@ $total_pages = ceil($total_users / $items_per_page);
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         .badge-role {
-    font-size: 0.9rem;
-    padding: 5px 10px;
-    border-radius: 20px;
-}
-
-.badge-role.admin {
-    background-color: #007bff; /* Blue */
-    color: white;
-}
-
-.badge-role.renter {
-    background-color: #28a745; /* Green */
-    color: white;
-}
-
-.badge-role.owner {
-    background-color: #fd7e14; /* Orange */
-    color: white;
-}
-
+            font-size: 0.9rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+        .badge-role.admin {
+            background-color: #007bff; /* Blue */
+            color: white;
+        }
+        .badge-role.renter {
+            background-color: #28a745; /* Green */
+            color: white;
+        }
+        .badge-role.owner {
+            background-color: #fd7e14; /* Orange */
+            color: white;
+        }
         .table-container {
             background: white;
             border-radius: 10px;
@@ -127,6 +128,7 @@ $total_pages = ceil($total_users / $items_per_page);
     </style>
 </head>
 <body>
+<?php include '../includes/admin-navbar.php'; ?>
 
     <div class="main-content">
         <div class="container">
@@ -172,11 +174,12 @@ $total_pages = ceil($total_users / $items_per_page);
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while($row = $result->fetch_assoc()): ?>
+                    <?php while($row = $result->fetch(PDO::FETCH_ASSOC)): ?>
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <img src="includes/user1.jpg" alt="User" class="rounded-circle me-3" width="40" height="40">
+                                    <!-- Profile Picture or Default -->
+                                    <img src="<?= !empty($row['profile_picture']) ? '../' . $row['profile_picture'] : '../images/pfp.png' ?>" alt="User" class="rounded-circle me-3" width="40" height="40">
                                     <div>
                                         <p class="mb-0 fw-bold"><?= $row['name'] ?></p>
                                         <small> <?= $row['email'] ?></small>
@@ -231,8 +234,3 @@ $total_pages = ceil($total_users / $items_per_page);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-<?php
-// Close the connection
-$conn->close();
-?>

@@ -1,675 +1,137 @@
 <?php
-// owner/view_rental.php
+// view_rental.php
 session_start();
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+require_once __DIR__ . '/../db/db.php';
 
-header("Cache-Control: no-cache, must-revalidate");
-header("Expires: 0");
-require_once '../db/db.php';
+// Check if rental_id is passed in the URL
+if (isset($_GET['rental_id'])) {
+    $rentalId = intval($_GET['rental_id']);
 
-// Check if owner is logged in
-if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
-    header('Location: ../admin/login.php');
-    exit();
-}
-
-$adminId = $_SESSION['id'];
-
-// Get rental ID from query parameters
-if (!isset($_GET['rental_id'])) {
-    echo "Error: rental_id is not provided.";
-    header('Location: review_disputes.php');
-    exit();
-} else {
-    echo "Rental ID received: ";
-    var_dump($_GET['rental_id']);
-}
-
-$rentalId = intval($_GET['rental_id']);
-
-// Modified query to fetch rental details without owner restriction
-$sql = "SELECT r.*, 
-        p.name AS product_name, 
-        p.brand, 
-        p.rental_period, 
-        p.quantity AS product_quantity, 
-        p.image AS product_image,
-        u.name AS renter_name,
-        o.name AS owner_name
+    // Fetch the rental details with an explicit column list
+    $stmt = $conn->prepare("
+        SELECT 
+            r.id, 
+            r.product_id, 
+            r.renter_id, 
+            r.owner_id, 
+            r.start_date, 
+            r.end_date, 
+            r.delivery_date, 
+            r.actual_end_date, 
+            r.rental_price, 
+            r.total_cost, 
+            r.payment_method, 
+            r.status, 
+            r.notification_sent, 
+            r.created_at, 
+            r.updated_at, 
+            p.name AS product_name, 
+            u.name AS renter_name
         FROM rentals r
         INNER JOIN products p ON r.product_id = p.id
         INNER JOIN users u ON r.renter_id = u.id
-        INNER JOIN users o ON r.owner_id = o.id
-        WHERE r.id = :rentalId";
-
-$stmt = $conn->prepare($sql);
-$stmt->bindParam(':rentalId', $rentalId, PDO::PARAM_INT);
-
-try {
+        WHERE r.id = :rental_id
+    ");
+    $stmt->bindParam(':rental_id', $rentalId, PDO::PARAM_INT);
     $stmt->execute();
     $rental = $stmt->fetch();
-    
+
     if (!$rental) {
-        $_SESSION['error'] = "Rental not found";
+        $_SESSION['error_message'] = "Rental not found.";
         header('Location: review_disputes.php');
         exit();
     }
-
-    // Calculate overdue days if rental is overdue
-    $overdue_days = null;
-    if ($rental['status'] === 'overdue' && !empty($rental['end_date'])) {
-        $end_date = new DateTime($rental['end_date']);
-        $today = new DateTime();
-        $interval = $today->diff($end_date);
-        $overdue_days = $interval->days;
-    }
-
-} catch (PDOException $e) {
-    $_SESSION['error'] = "Database error occurred";
-    error_log("Database Error: " . $e->getMessage());
+} else {
+    $_SESSION['error_message'] = "No rental selected.";
     header('Location: review_disputes.php');
     exit();
 }
 
-$currentStatus = $rental['status'];
-$checkOwnerReview = $conn->prepare("SELECT * FROM renter_reviews WHERE rental_id = ? AND owner_id = ?");
-$checkOwnerReview->execute([$rentalId, $adminId]);
-$hasOwnerReview = $checkOwnerReview->fetch();
+// Handle actions like banning a user
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'];
+    // Use the fetched rental details to get the renter's user ID
+    $userId = $rental['renter_id'];
 
-// Define the status flow
-$statusFlow = [
-    'pending_confirmation' => 'Pending',
-    'approved' => 'Approved',
-    'delivery_in_progress' => 'On Delivery',
-    'delivered' => 'Delivered',
-    'renting' => 'Renting',
-    'completed' => 'Completed',
-    'returned' => 'Returned',
-    'cancelled' => 'Cancelled',
-    'overdue' => 'Overdue'
-];
+    if ($action === 'ban') {
+        // Update the user's status to banned
+        $stmt = $conn->prepare("UPDATE users SET status = 'banned' WHERE id = :user_id");
+        $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
 
-$filteredStatusFlow = array_filter($statusFlow, function ($key) use ($currentStatus) {
-    // If the status is overdue, remove "completed", "returned", and "cancelled"
-    if ($currentStatus === 'overdue') {
-        return !in_array($key, ['completed', 'returned', 'cancelled']);
-    }
-
-    // If the status is renting, we should skip cancelled and overdue
-    if ($currentStatus === 'renting') {
-        return $key !== 'cancelled' && $key !== 'overdue';
-    }
-
-    // Otherwise, include all statuses except for cancelled and overdue
-    $specialStatuses = ['cancelled', 'overdue'];
-    return !in_array($key, $specialStatuses);
-}, ARRAY_FILTER_USE_KEY);
-
-// Helper function to determine if a status should be active
-function isStatusActive($statusKey, $currentStatus, $statusFlow) {
-    $keys = array_keys($statusFlow);
-    $currentIndex = array_search($currentStatus, $keys);
-    $statusIndex = array_search($statusKey, $keys);
-
-    if ($statusIndex === false) {
-        return false;
-    }
-
-    return $statusIndex <= $currentIndex;
-}
-
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') { 
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        $_SESSION['error'] = "Invalid CSRF token";
-        header("Location: view_rental.php?rental_id=$rentalId");
+        $_SESSION['success_message'] = "User has been banned.";
+        header('Location: review_disputes.php'); // Redirect after banning
         exit();
-    }
+    } elseif ($action === 'resolve') {
+        // Mark the dispute as resolved
+        $stmt = $conn->prepare("UPDATE disputes SET status = 'resolved' WHERE rental_id = :rental_id");
+        $stmt->bindParam(':rental_id', $rentalId, PDO::PARAM_INT);
+        $stmt->execute();
 
-    $action = $_POST['action'] ?? '';
-
-    if ($action === 'approve') {
-        try {
-            $conn->beginTransaction();
-            
-            // Update rental status
-            $stmt = $conn->prepare("
-                UPDATE rentals 
-                SET status = 'approved', updated_at = NOW()
-                WHERE id = :rentalId
-            ");
-            $stmt->execute([':rentalId' => $rentalId]);
-    
-            // Decrease product quantity
-            $stmt = $conn->prepare("
-                UPDATE products 
-                SET quantity = quantity - 1 
-                WHERE id = :productId AND quantity > 0
-            ");
-            $stmt->execute([':productId' => $rental['product_id']]);
-    
-            $conn->commit();
-            $_SESSION['success'] = "Rental approved successfully";
-        } catch (Exception $e) {
-            $conn->rollBack();
-            $_SESSION['error'] = "Approval failed: " . $e->getMessage();
-        }
-    } elseif ($action === 'cancel') {
-        try {
-            $conn->beginTransaction();
-            
-            // Update rental status
-            $stmt = $conn->prepare("
-                UPDATE rentals 
-                SET status = 'cancelled', updated_at = NOW()
-                WHERE id = :rentalId
-            ");
-            $stmt->execute([':rentalId' => $rentalId]);
-    
-            // Restore quantity if previously approved
-            if ($rental['status'] === 'approved') {
-                $stmt = $conn->prepare("
-                    UPDATE products 
-                    SET quantity = quantity + 1 
-                    WHERE id = :productId
-                ");
-                $stmt->execute([':productId' => $rental['product_id']]);
-            }
-    
-            $conn->commit();
-            $_SESSION['success'] = "Rental cancelled successfully";
-        } catch (Exception $e) {
-            $conn->rollBack();
-            $_SESSION['error'] = "Cancellation failed: " . $e->getMessage();
-        }
-    } elseif ($action === 'upload_proof') {
-        // Owner uploads proof of delivery
-        try {
-            $conn->beginTransaction();
-
-            // Validate file upload
-            $file = $_FILES['proof_file'];
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            $maxSize = 2 * 1024 * 1024; // 2MB
-
-            if ($file['error'] !== UPLOAD_ERR_OK) {
-                throw new Exception("File upload error.");
-            }
-
-            if ($file['size'] > $maxSize) {
-                throw new Exception("File size exceeds 2MB limit.");
-            }
-
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($finfo, $file['tmp_name']);
-            finfo_close($finfo);
-
-            if (!in_array($mimeType, $allowedTypes)) {
-                throw new Exception("Invalid file type. Allowed: JPG, PNG, GIF.");
-            }
-
-            // Save file
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = uniqid("proof_delivery_") . '.' . $ext;
-            $uploadPath = "../img/proofs/$filename";
-            if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
-                throw new Exception("Failed to save file.");
-            }
-
-            // Insert proof
-            $stmt = $conn->prepare("
-                INSERT INTO proofs (rental_id, proof_type, proof_url)
-                VALUES (:rentalId, 'delivery', :url)
-            ");
-            $stmt->execute([
-                ':rentalId' => $rentalId,
-                ':url' => $uploadPath
-            ]);
-
-            // Update rental status
-            $stmt = $conn->prepare("
-                UPDATE rentals 
-                SET status = 'delivery_in_progress', updated_at = NOW()
-                WHERE id = :rentalId
-            ");
-            $stmt->execute([':rentalId' => $rentalId]);
-
-            $conn->commit();
-            $_SESSION['success'] = "Proof uploaded. Status: On Delivery.";
-        } catch (Exception $e) {
-            $conn->rollBack();
-            $_SESSION['error'] = "Error: " . $e->getMessage();
-        }
-    } elseif ($action === 'start_renting') {
-        // Start rental period
-        try {
-            $conn->beginTransaction();
-            
-            $period = strtolower($rental['rental_period']);
-            $startDate = date('Y-m-d');
-            $endDate = date('Y-m-d', strtotime("+1 $period", strtotime($startDate)));
-
-            $stmt = $conn->prepare("
-                UPDATE rentals 
-                SET status = 'renting',
-                    start_date = :startDate,
-                    end_date = :endDate,
-                    updated_at = NOW()
-                WHERE id = :rentalId
-            ");
-            $stmt->execute([
-                ':startDate' => $startDate,
-                ':endDate' => $endDate,
-                ':rentalId' => $rentalId
-            ]);
-
-            $conn->commit();
-            $_SESSION['success'] = "Rental period started!";
-        } catch (Exception $e) {
-            $conn->rollBack();
-            $_SESSION['error'] = "Error: " . $e->getMessage();
-        }
-        
-    } elseif ($action === 'end_rent') {
-        // End rental period
-        try {
-            $conn->beginTransaction();
-    
-            // Update rental status to completed and set the actual end date
-            $stmt = $conn->prepare("
-                UPDATE rentals 
-                SET status = 'completed', actual_end_date = NOW(), updated_at = NOW()
-                WHERE id = :rentalId
-            ");
-            $stmt->execute([':rentalId' => $rentalId]);
-    
-            $conn->commit();
-            $_SESSION['success'] = "Rental ended successfully!";
-        } catch (Exception $e) {
-            $conn->rollBack();
-            $_SESSION['error'] = "Error: " . $e->getMessage();
-        }
-        header("Location: view_rental.php?rental_id=$rentalId");
+        $_SESSION['success_message'] = "Dispute has been resolved.";
+        header('Location: review_disputes.php'); // Redirect after resolving
         exit();
-    }
-
-    // Fetch proofs (update query to include 'delivery')
-    $sql = "SELECT * FROM proofs WHERE rental_id = :rentalId AND proof_type IN ('delivery', 'return') ORDER BY created_at ASC"; 
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':rentalId', $rentalId, PDO::PARAM_INT);
-    $stmt->execute();
-    $proofs = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Organize proofs by type
-    $proofsByType = [
-        'delivery' => [],
-        'return' => []
-    ];
-    foreach ($proofs as $proof) {
-        $proofsByType[$proof['proof_type']][] = $proof;
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rental Details</title>
-    <!-- Bootstrap CSS -->
+    <title>View Rental - Admin Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="../css/owner/renter_details.css">
-
-    <style>
-        /* Add these changes to your existing CSS */
-.progress-container {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    margin: 40px 0 60px; /* Add bottom margin for proof links */
-}
-
-.progress-line {
-    position: absolute;
-    top: 20px; /* Center vertically relative to circles */
-    left: 0;
-    right: 0;
-    height: 4px;
-    z-index: 0;
-}
-
-.progress-step {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 1;
-    width: 100%;
-}
-
-/* Position labels below progress line */
-.progress-step .label {
-    position: absolute;
-    top: 50px; /* Below progress line */
-    width: 120px;
-    text-align: center;
-}
-
-/* Proof links container */
-.proof-links {
-    position: absolute;
-    top: 80px; /* Below labels */
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-}
-
-/* Individual proof link positioning */
-.proof-link {
-    width: 120px;
-    text-align: center;
-}
-
-.progress-step.overdue {
-    color: white;
-    background-color: red; /* Red background for Overdue status */
-    border-color: red; /* Red border */
-}
-
-.progress-step.overdue .circle {
-    background-color: red; /* Red circle for Overdue */
-}
-    </style>
-    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-<?php include '../admin/includes/owner-header-sidebar.php';?>
+<?php include '../includes/admin-navbar.php'; ?>
 
-    <main>
-        <div class="card">
-            <div class="card-header">Rental Details</div>
-            <div class="card-body">
-                <!-- Alerts -->
-                <?php if (isset($_SESSION['success'])): ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <?= htmlspecialchars($_SESSION['success']) ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    <?php unset($_SESSION['success']); ?>
-                <?php endif; ?>
+<div class="container-fluid">
+    <div class="row">
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <h2 class="mt-4">Rental Details</h2>
 
-                <?php if (isset($_SESSION['error'])): ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <?= htmlspecialchars($_SESSION['error']) ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    <?php unset($_SESSION['error']); ?>
-                <?php endif; ?>
+            <!-- Success Message -->
+            <?php if (isset($_SESSION['success_message'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <?= htmlspecialchars($_SESSION['success_message']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['success_message']); ?>
+            <?php endif; ?>
 
-                <?php
-$overdue_days = 0;
-if ($rental && $rental['status'] === 'overdue' && !empty($rental['end_date'])) {
-    $endDate = new DateTime($rental['end_date']);
-    $today = new DateTime();
-    $interval = $endDate->diff($today);
-    $overdue_days = $interval->days;  // Remove the %R format which includes the sign
-}
-?>
-                <!-- Rental Info -->
-                <?php if ($rental): ?>
-                    <h5 class="card-title">Rental ID: <?= htmlspecialchars($rental['id']) ?></h5>
-<?php else: ?>
-    <h5 class="card-title">Rental not found.</h5>
-<?php endif; ?>
-                <p>Overdue Days: <?= $overdue_days ?> day(s)</p>
+            <!-- Error Message -->
+            <?php if (isset($_SESSION['error_message'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <?= htmlspecialchars($_SESSION['error_message']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['error_message']); ?>
+            <?php endif; ?>
 
-                <?php if ($currentStatus === 'returned' && !$hasOwnerReview): ?>
-    <!-- Button to trigger the modal -->
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#feedbackModal">
-        Give Feedback
-    </button>
-<?php endif; ?>
+            <div class="card my-4">
+                <div class="card-header">
+                    Rental Information
+                </div>
+                <div class="card-body">
+                    <h5>Rental ID: <?= htmlspecialchars($rental['id']) ?></h5>
+                    <p><strong>Product Name:</strong> <?= htmlspecialchars($rental['product_name']) ?></p>
+                    <p><strong>Renter Name:</strong> <?= htmlspecialchars($rental['renter_name']) ?></p>
+                    <p><strong>Rental Start Date:</strong> <?= htmlspecialchars($rental['start_date']) ?></p>
+                    <p><strong>Rental End Date:</strong> <?= htmlspecialchars($rental['end_date']) ?></p>
+                    <p><strong>Status:</strong> <?= htmlspecialchars($rental['status']) ?></p>
 
-<!-- Feedback Modal -->
-<div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="feedbackModalLabel">Submit Feedback</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form method="post">
-                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                    <h4>Give Feedback</h4>
-
-                    <!-- Rating for the renter -->
-                    <div class="mb-3">
-                        <label for="renter_rating" class="form-label">Renter Rating (1-5)</label>
-                        <select class="form-select" name="renter_rating" required>
-                            <option value="" disabled selected>Select rating</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="renter_comment" class="form-label">Commend for Renter</label>
-                        <textarea class="form-control" name="renter_comment" rows="3" required></textarea>
-                    </div>
-
-                    <!-- Rating for the product -->
-                    <div class="mb-3">
-                        <label for="product_rating" class="form-label">Product Rating (1-5)</label>
-                        <select class="form-select" name="product_rating" required>
-                            <option value="" disabled selected>Select rating</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="product_comment" class="form-label">Comment for Product</label>
-                        <textarea class="form-control" name="product_comment" rows="3" required></textarea>
-                    </div>
-
-                    <button type="submit" name="submit_feedback" class="btn btn-primary">Submit Feedback</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-                <!-- Action Buttons -->
-                <?php if ($currentStatus === 'pending_confirmation'): ?>
-                    <div class="mb-4">
-                        <form method="post" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                            <input type="hidden" name="action" value="approve">
-                            <button type="submit" class="btn btn-success me-2">Approve Rental</button>
-                        </form>
-                        
-                        <form method="post" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                            <input type="hidden" name="action" value="cancel">
-                            <button type="submit" class="btn btn-danger">Cancel Rental</button>
-                        </form>
-                    </div>
-                <?php endif; ?>
-
-                <?php if ($currentStatus === 'approved'): ?>
-                    <form method="post" enctype="multipart/form-data" class="mb-4">
-                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                        <input type="hidden" name="action" value="upload_proof">
-                        <div class="mb-3">
-                            <label class="form-label">Upload Delivery Proof (Max 2MB, PNG/JPG)</label>
-                            <input type="file" class="form-control" name="proof_file" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Upload Owner's Delivery Proof</button>
+                    <!-- Admin actions: ban user or mark dispute as resolved -->
+                    <form method="POST" action="view_rental.php?rental_id=<?= htmlspecialchars($rental['id']) ?>">
+                        <input type="hidden" name="rental_id" value="<?= htmlspecialchars($rental['id']) ?>">
+                        <button type="submit" name="action" value="ban" class="btn btn-danger">Ban User</button>
+                        <button type="submit" name="action" value="resolve" class="btn btn-success">Mark as Resolved</button>
                     </form>
-                <?php endif; ?>
-
-                <?php if ($currentStatus === 'delivered'): ?>
-                    <form method="post" class="mb-4">
-                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                        <input type="hidden" name="action" value="start_renting">
-                        <button type="submit" class="btn btn-success">Start Rental Period</button>
-                    </form>
-                <?php endif; ?>
-
-                <?php if ($currentStatus === 'renting'): ?>
-    <form method="post" class="mb-4">
-        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-        <input type="hidden" name="action" value="end_rent">
-        <button type="submit" class="btn btn-warning">End Rental</button>
-    </form>
-<?php endif; ?>
-
-
-                <?php if ($currentStatus === 'pending_confirmation') : ?>
-
-<?php endif; ?>
-
-                <!-- Progress Steps -->
-                <div class="progress-container">
-                    <div class="progress-line"></div>
-
-
-                    
-                    <?php foreach ($filteredStatusFlow as $key => $label): ?>
-                        <div class="progress-step <?= isStatusActive($key, $currentStatus, $filteredStatusFlow) ? 'active' : '' ?>">
-                            <div class="circle"><?= $key === $currentStatus ? "✔" : "" ?></div>
-                            <div class="label">
-                                <?= htmlspecialchars($label) ?>
-                                
-                                <?php if ($key === 'delivery_in_progress' && isset($deliveryProofs[0])): ?>
-    <div class="mt-2">
-        <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
-           data-bs-url="<?= htmlspecialchars($deliveryProofs[0]['proof_url']) ?>"
-           data-bs-type="<?= htmlspecialchars($deliveryProofs[0]['proof_type']) ?>"
-           data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($deliveryProofs[0]['created_at']))) ?>">
-            View
-        </a>
-    </div>
-<?php endif; ?>
-
-<?php if ($key === 'delivered' && isset($deliveryProofs[1])): ?>
-    <div class="mt-2">
-        <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
-           data-bs-url="<?= htmlspecialchars($deliveryProofs[1]['proof_url']) ?>"
-           data-bs-type="<?= htmlspecialchars($deliveryProofs[1]['proof_type']) ?>"
-           data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($deliveryProofs[1]['created_at']))) ?>">
-            View
-        </a>
-    </div>
-<?php endif; ?>
-
-<?php if ($key === 'returned' && !empty($proofsByType['return'])): ?>
-    <div class="mt-2">
-        <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
-           data-bs-url="<?= htmlspecialchars($proofsByType['return'][0]['proof_url']) ?>"
-           data-bs-type="<?= htmlspecialchars($proofsByType['return'][0]['proof_type']) ?>"
-           data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($proofsByType['return'][0]['created_at']))) ?>">
-            View
-        </a>
-    </div>
-<?php endif; ?>
-
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
                 </div>
             </div>
-        </div>
-    </main>
-
-    <!-- Modal for Viewing Proofs -->
-<!-- Modal for Viewing Proofs -->
-<div class="modal fade" id="proofModal" tabindex="-1" aria-labelledby="proofModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 800px;"> <!-- Adjusted modal size -->
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="d-flex justify-content-between w-100 align-items-center">
-                    <h5 class="modal-title m-0" id="proofModalLabel"></h5>
-                    <span id="proofDate" class="text-muted small me-3"></span>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img id="proofImage" src="" alt="Proof Image" style="max-width: 80%; height: auto; margin: 0 auto;">
-            </div>
-        </div>
+        </main>
     </div>
 </div>
-
-<script>
-    const proofModal = document.getElementById('proofModal');
-    proofModal.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        const proofUrl = button.getAttribute('data-bs-url');
-        const proofType = button.getAttribute('data-bs-type');
-        const proofDate = button.getAttribute('data-bs-date');
-
-        // Title mapping
-        const titleMap = {
-            'delivery': 'Proof of Delivery',
-            'return': 'Proof of Return',
-            'delivered': 'Proof of Delivery Completion'
-        };
-
-        // Update elements
-        proofModal.querySelector('.modal-title').textContent = titleMap[proofType] || 'Proof';
-        proofModal.querySelector('#proofDate').textContent = proofDate;
-        proofModal.querySelector('#proofImage').src = proofUrl;
-    });
-</script>
-
-
-    <!-- Bootstrap JS Bundle -->
-    <script>
-        // JavaScript to update modal with the proof image URL
-        const proofModal = document.getElementById('proofModal');
-        proofModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget; // Button that triggered the modal
-            const proofUrl = button.getAttribute('data-bs-url'); // Extract info from data-bs-url attribute
-            const proofImage = proofModal.querySelector('#proofImage');
-            proofImage.src = proofUrl; // Update the modal image source with the proof URL
-        });
-    </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-<?php
-// Helper function to determine badge color based on status
-function getStatusBadgeClass($status) {
-    $statusClasses = [
-        'pending_confirmation' => 'warning',
-        'approved' => 'info',
-        'delivery_in_progress' => 'primary',
-        'delivered' => 'success',
-        'renting' => 'primary',
-        'completed' => 'success',
-        'returned' => 'success',
-        'cancelled' => 'danger',
-        'overdue' => 'danger'
-    ];
-    
-    return $statusClasses[$status] ?? 'secondary';
-}
-?>

@@ -156,19 +156,19 @@ $pendingUsers = $stmt->fetchAll();
                                 <td class="action-icons">
                                     <!-- Eye icon to view verification details in a modal -->
                                     <button type="button" class="btn btn-sm btn-info view-details" data-bs-toggle="modal" data-bs-target="#verificationModal"
-                                        data-name="<?= htmlspecialchars($user['name']) ?>"
-                                        data-email="<?= htmlspecialchars($user['email']) ?>"
-                                        data-validid="<?= htmlspecialchars($user['valid_id_photo']) ?>"
-                                        data-selfie="<?= htmlspecialchars($user['selfie_photo']) ?>"
-                                        data-cosigneeemail="<?= htmlspecialchars($user['cosignee_email']) ?>"
-                                        data-cosigneefname="<?= htmlspecialchars($user['cosignee_first_name']) ?>"
-                                        data-cosigneelname="<?= htmlspecialchars($user['cosignee_last_name']) ?>"
-                                        data-cosigneerelationship="<?= htmlspecialchars($user['cosignee_relationship']) ?>"
-                                        data-cosigneeid="<?= htmlspecialchars($user['cosignee_id_photo']) ?>"
-                                        data-cosigneeselfie="<?= htmlspecialchars($user['cosignee_selfie']) ?>"
-                                    >
-                                        <i class="fas fa-eye" title="View Verification Details"></i>
-                                    </button>
+    data-name="<?= htmlspecialchars($user['name']) ?>"
+    data-email="<?= htmlspecialchars($user['email']) ?>"
+    data-validid="<?= htmlspecialchars($user['valid_id_photo']) ?>"
+    data-selfie="<?= htmlspecialchars($user['selfie_photo']) ?>"
+    data-cosigneeemail="<?= htmlspecialchars($user['cosignee_email'] ?? 'N/A') ?>"
+    data-cosigneefname="<?= htmlspecialchars($user['cosignee_first_name'] ?? 'N/A') ?>"
+    data-cosigneelname="<?= htmlspecialchars($user['cosignee_last_name'] ?? 'N/A') ?>"
+    data-cosigneerelationship="<?= htmlspecialchars($user['cosignee_relationship'] ?? 'N/A') ?>"
+    data-cosigneeid="<?= htmlspecialchars($user['cosignee_id_photo']) ?>"
+    data-cosigneeselfie="<?= htmlspecialchars($user['cosignee_selfie']) ?>"
+>
+    <i class="fas fa-eye" title="View Verification Details"></i>
+</button>
 
                                     <!-- Approve Form -->
                                     <form method="POST" action="" style="display:inline;">
@@ -221,13 +221,13 @@ $pendingUsers = $stmt->fetchAll();
           <p><strong>Selfie Photo:</strong></p>
           <img id="modalSelfie" src="" alt="Selfie Photo" class="modal-img mb-3">
           <hr>
-          <p><strong>Cosignee Email:</strong> <span id="modalCosigneeEmail"></span></p>
-          <p><strong>Cosignee Name:</strong> <span id="modalCosigneeName"></span></p>
-          <p><strong>Relationship:</strong> <span id="modalCosigneeRelationship"></span></p>
-          <p><strong>Cosignee ID Photo:</strong></p>
-          <img id="modalCosigneeID" src="" alt="Cosignee ID Photo" class="modal-img mb-3">
-          <p><strong>Cosignee Selfie:</strong></p>
-          <img id="modalCosigneeSelfie" src="" alt="Cosignee Selfie" class="modal-img mb-3">
+          <p><strong>Cosignee Email:</strong> <span id="modalCosigneeEmail"><?= htmlspecialchars($user['cosignee_email'] ?? 'N/A') ?></span></p>
+<p><strong>Cosignee Name:</strong> <span id="modalCosigneeName"><?= htmlspecialchars($user['cosignee_first_name'] ?? 'N/A') ?> <?= htmlspecialchars($user['cosignee_last_name'] ?? 'N/A') ?></span></p>
+<p><strong>Relationship:</strong> <span id="modalCosigneeRelationship"><?= htmlspecialchars($user['cosignee_relationship'] ?? 'N/A') ?></span></p>
+<p><strong>Cosignee ID Photo:</strong></p>
+<img id="modalCosigneeID" src="<?= $user['cosignee_id_photo'] ? "../" . htmlspecialchars($user['cosignee_id_photo']) : 'default_image.jpg' ?>" alt="Cosignee ID Photo" class="modal-img mb-3">
+<p><strong>Cosignee Selfie:</strong></p>
+<img id="modalCosigneeSelfie" src="<?= $user['cosignee_selfie'] ? "../" . htmlspecialchars($user['cosignee_selfie']) : 'default_image.jpg' ?>" alt="Cosignee Selfie" class="modal-img mb-3">
         </div>
       </div>
       <div class="modal-footer">

@@ -29,10 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt2->bindValue(':user_id', $user['id']);
                 $stmt2->execute();
                 $verification = $stmt2->fetch();
-
-                if ($verification && $verification['verification_status'] !== 'verified') {
-                    $errorMessage = 'Your account is pending verification. Please wait for admin approval.';
-                }
             }
 
             if (!$errorMessage) {

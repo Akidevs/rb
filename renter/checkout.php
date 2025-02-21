@@ -220,102 +220,94 @@ if (empty($_SESSION['csrf_token'])) {
                                     <li class="">
                                         <h6 class="mb-1 fw-bold">Billing and Shipping</h6>
                                         <div class="mb-3">
-                                            <form method="post" action="process_checkout.php" class="needs-validation" novalidate>
-                                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
-                                                <?php if ($isDirectCheckout): ?>
-                                                    <input type="hidden" name="direct_checkout" value="1">
-                                                    <input type="hidden" name="product_id" value="<?= htmlspecialchars($productId); ?>">
-                                                    <input type="hidden" name="start_date" value="<?= htmlspecialchars($startDate); ?>">
-                                                    <input type="hidden" name="end_date" value="<?= htmlspecialchars($endDate); ?>">
-                                                <?php endif; ?>
-                                                <div class="row">
-                                                    <div class="col-lg-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label" for="billing-name">Name</label>
-                                                            <input type="text" class="form-control" id="billing-name" name="billing_name" placeholder="Enter name" required>
-                                                            <div class="invalid-feedback">Please provide your name.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label" for="billing-email-address">Email Address</label>
-                                                            <input type="email" class="form-control" id="billing-email-address" name="billing_email" placeholder="Enter email" required>
-                                                            <div class="invalid-feedback">Please provide a valid email address.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label" for="billing-phone">Phone</label>
-                                                            <input type="text" class="form-control" id="billing-phone" name="billing_phone" placeholder="Enter Phone no." required>
-                                                            <div class="invalid-feedback">Please provide your phone number.</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label" for="billing-address">Address</label>
-                                                    <textarea class="form-control" id="billing-address" name="billing_address" rows="3" placeholder="Enter full address" required></textarea>
-                                                    <div class="invalid-feedback">Please provide your address.</div>
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col-lg-4">
-                                                        <div class="mb-4 mb-lg-0">
-                                                            <label class="form-label">Country</label>
-                                                            <select class="form-control form-select" name="billing_country" required>
-                                                                <option value="">Select Country</option>
-                                                                <option value="Philippines">Philippines</option>
-                                                            </select>
-                                                            <div class="invalid-feedback">Please select your country.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-4">
-                                                        <div class="mb-4 mb-lg-0">
-                                                            <label class="form-label" for="billing-city">City</label>
-                                                            <input type="text" class="form-control" id="billing-city" name="billing_city" placeholder="Enter City" required>
-                                                            <div class="invalid-feedback">Please provide your city.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-4">
-                                                        <div class="mb-0">
-                                                            <label class="form-label" for="zip-code">Zip / Postal code</label>
-                                                            <input type="text" class="form-control" id="zip-code" name="billing_zip" placeholder="Enter Postal code" required>
-                                                            <div class="invalid-feedback">Please provide your zip or postal code.</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <li class="">
-                                                    <div class="feed-item-list">
-                                                        <h6 class="fw-bold mb-1 mt-4">Payment Information</h6>
-                                                        <div class="mt-3">
-                                                            <h6 class="mb-3">Payment method:</h6>
-                                                            <div class="form-check">
-                                                                <input class="form-check-input" type="radio" name="payment_method" id="payment_credit_card" value="credit_card" required>
-                                                                <label class="form-check-label" for="payment_credit_card">Credit / Debit Card</label>
-                                                            </div>
-                                                            <div class="form-check">
-                                                                <input class="form-check-input" type="radio" name="payment_method" id="payment_paypal" value="paypal" required>
-                                                                <label class="form-check-label" for="payment_paypal">Paypal</label>
-                                                            </div>
-                                                            <div class="form-check">
-                                                                <input class="form-check-input" type="radio" name="payment_method" id="payment_cod" value="cod" required>
-                                                                <label class="form-check-label" for="payment_cod">Cash on Delivery</label>
-                                                            </div>
-                                                            <div class="invalid-feedback d-block">Please select a payment method.</div>
-                                                        </div>
-                                                    </div>
-                                                </li>
-                                                <div class="row my-4">
-                                                    <div class="col-4">
-                                                        <a href="browse.php" class="btn btn-link text-muted">
-                                                            <i class="bi bi-arrow-left me-1"></i> Continue Shopping </a>
-                                                    </div>
-                                                    <div class="col">
-                                                        <div class="text-end mt-2 mt-sm-0">
-                                                            <button type="submit" class="btn btn-success" <?= ($enableCheckout) ? '' : 'disabled'; ?>>
-                                                                <i class="bi bi-cart-check me-1"></i> Proceed </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </form>
+                                        <form method="post" action="process_checkout.php" class="needs-validation" novalidate>
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token']; ?>">
+    <?php if ($isDirectCheckout): ?>
+        <input type="hidden" name="direct_checkout" value="1">
+        <input type="hidden" name="product_id" value="<?= htmlspecialchars($productId); ?>">
+        <input type="hidden" name="start_date" value="<?= htmlspecialchars($startDate); ?>">
+        <input type="hidden" name="end_date" value="<?= htmlspecialchars($endDate); ?>">
+    <?php endif; ?>
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="mb-3">
+                <label class="form-label" for="billing-name">Name</label>
+                <input type="text" class="form-control" id="billing-name" name="billing_name" placeholder="Enter name" required>
+                <div class="invalid-feedback">Please provide your name.</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="mb-3">
+                <label class="form-label" for="billing-email-address">Email Address</label>
+                <input type="email" class="form-control" id="billing-email-address" name="billing_email" placeholder="Enter email" required>
+                <div class="invalid-feedback">Please provide a valid email address.</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="mb-3">
+                <label class="form-label" for="billing-phone">Phone</label>
+                <input type="text" class="form-control" id="billing-phone" name="billing_phone" placeholder="Enter Phone no." required>
+                <div class="invalid-feedback">Please provide your phone number.</div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="mb-4 mb-lg-0">
+                <label class="form-label" for="billing-city">City</label>
+                <input type="text" class="form-control" id="billing-city" name="billing_city" placeholder="Enter City" required>
+                <div class="invalid-feedback">Please provide your city.</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="mb-0">
+                <label class="form-label" for="zip-code">Zip / Postal code</label>
+                <input type="text" class="form-control" id="zip-code" name="billing_zip" placeholder="Enter Postal code" required>
+                <div class="invalid-feedback">Please provide your zip or postal code.</div>
+            </div>
+        </div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="billing-address">Address</label>
+        <textarea class="form-control" id="billing-address" name="billing_address" rows="3" placeholder="Enter full address" required></textarea>
+        <div class="invalid-feedback">Please provide your address.</div>
+    </div>
+
+    <div class="">
+        <div class="feed-item-list">
+            <h6 class="fw-bold mb-1 mt-4">Payment Information</h6>
+            <div class="mt-3">
+                <h6 class="mb-3">Payment method:</h6>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_method" id="payment_credit_card" value="credit_card" required>
+                    <label class="form-check-label" for="payment_credit_card">Credit / Debit Card</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_method" id="payment_paypal" value="paypal" required>
+                    <label class="form-check-label" for="payment_paypal">Paypal</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_method" id="payment_cod" value="cod" required>
+                    <label class="form-check-label" for="payment_cod">Cash on Delivery</label>
+                </div>
+                <div class="invalid-feedback d-block">Please select a payment method.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row my-4">
+        <div class="col-4">
+            <a href="browse.php" class="btn btn-link text-muted">
+                <i class="bi bi-arrow-left me-1"></i> Continue Shopping </a>
+        </div>
+        <div class="col">
+            <div class="text-end mt-2 mt-sm-0">
+                <button type="submit" class="btn btn-success" <?= ($enableCheckout) ? '' : 'disabled'; ?>>
+                    <i class="bi bi-cart-check me-1"></i> Proceed </button>
+            </div>
+        </div>
+    </div>
+</form>
                                         </div>
                                     </li>
                                 </ol>

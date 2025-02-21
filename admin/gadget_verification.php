@@ -171,7 +171,7 @@ $pendingGadgets = $stmt->fetchAll();
     </div>
 </div>
 
-<!-- Modal for Gadget Details -->
+<!-- Gadget Details Modal -->
 <div class="modal fade" id="gadgetModal" tabindex="-1" aria-labelledby="gadgetModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -180,14 +180,12 @@ $pendingGadgets = $stmt->fetchAll();
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-<!-- Gadget Details Modal (Example Update) -->
-<p><strong>Name:</strong> <span id="modalGadgetName"><?= htmlspecialchars($gadget['name'] ?? 'No name available') ?></span></p>
-<p><strong>Owner:</strong> <span id="modalOwnerName"><?= htmlspecialchars($gadget['owner_name'] ?? 'No owner available') ?></span></p>
-<p><strong>Category:</strong> <span id="modalCategory"><?= htmlspecialchars($gadget['category'] ?? 'No category available') ?></span></p>
-<p><strong>Applied On:</strong> <span id="modalAppliedOn"><?= htmlspecialchars($gadget['created_at'] ?? 'No date available') ?></span></p>
-<p><strong>Product Image:</strong></p>
-<img id="modalProductImage" src="<?= htmlspecialchars("../" . ($gadget['image'] ?? 'default_image.jpg')) ?>" alt="Product Image" class="modal-img mb-3">
-
+        <p><strong>Name:</strong> <span id="modalGadgetName"></span></p>
+        <p><strong>Owner:</strong> <span id="modalOwnerName"></span></p>
+        <p><strong>Category:</strong> <span id="modalCategory"></span></p>
+        <p><strong>Applied On:</strong> <span id="modalAppliedOn"></span></p>
+        <p><strong>Product Image:</strong></p>
+        <img id="modalProductImage" src="" alt="Product Image" class="modal-img mb-3">
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -201,14 +199,18 @@ $pendingGadgets = $stmt->fetchAll();
 <script>
     // When a "View Details" button is clicked, fill the modal with data attributes.
     document.querySelectorAll('.view-details').forEach(function(button) {
-        button.addEventListener('click', function() {
-            document.getElementById('modalGadgetName').textContent = this.getAttribute('data-name');
-            document.getElementById('modalOwnerName').textContent = this.getAttribute('data-owner');
-            document.getElementById('modalCategory').textContent = this.getAttribute('data-category');
-            document.getElementById('modalAppliedOn').textContent = this.getAttribute('data-applied');
-            document.getElementById('modalProductImage').src = "../" + this.getAttribute('data-image');
-        });
+    button.addEventListener('click', function() {
+        // Fill in modal details dynamically
+        document.getElementById('modalGadgetName').textContent = this.getAttribute('data-name');
+        document.getElementById('modalOwnerName').textContent = this.getAttribute('data-owner');
+        document.getElementById('modalCategory').textContent = this.getAttribute('data-category');
+        document.getElementById('modalAppliedOn').textContent = this.getAttribute('data-applied');
+        
+        // Set the image source dynamically
+        const imagePath = "../img/uploads/" + this.getAttribute('data-image');
+        document.getElementById('modalProductImage').src = imagePath;
     });
+});
 </script>
 </body>
 </html>

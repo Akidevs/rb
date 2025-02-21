@@ -278,7 +278,7 @@
                     <p class="fs-6 text-secondary p-0"><?php echo $active_status; ?></p> <!-- Active status -->
                     <div class="d-flex gap-2">
                         <a href="#" class="btn btn-success m-0 px-2">Message</a>
-                        <a href="#" class="btn btn-outline-secondary m-0 px-2">View Profile</a>
+                        <a href="review.php?owner_id=<?php echo $product['owner_id']; ?>" class="btn btn-outline-secondary m-0 px-2">View Profile</a>
                     </div>
                 </div>
                 <div class="col-7 ps-0 m-0 flex-grow-1">

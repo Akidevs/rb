@@ -323,16 +323,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Fetch proofs (update query to include 'delivery')
-$sql = "SELECT * FROM proofs WHERE rental_id = :rentalId AND proof_type IN ('delivery', 'return')ORDER BY created_at ASC"; 
+$sql = "SELECT * FROM proofs WHERE rental_id = :rentalId AND proof_type IN ('delivery', 'delivered', 'return') ORDER BY created_at ASC";
 $stmt = $conn->prepare($sql);
 $stmt->bindParam(':rentalId', $rentalId, PDO::PARAM_INT);
 $stmt->execute();
 $proofs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Organize proofs by type
+// Organize proofs by type (both owner and renter)
 $proofsByType = [
-    'delivery' => [],
-    'return' => []
+    'delivery' => [], // Owner's proof
+    'return' => [],   // Renter's return proof (if any)
 ];
 foreach ($proofs as $proof) {
     $proofsByType[$proof['proof_type']][] = $proof;
@@ -591,55 +591,57 @@ if ($currentStatus === 'renting' && !empty($rental['end_date'])) {
 
                     
                     <?php 
-                    // Sort delivery proofs by creation time
-                    $deliveryProofs = $proofsByType['delivery'];
-                    usort($deliveryProofs, function($a, $b) {
-                        return strtotime($a['created_at']) - strtotime($b['created_at']);
-                    });
-                    ?>
-                    
-                    <?php foreach ($filteredStatusFlow as $key => $label): ?>
-                        <div class="progress-step <?= isStatusActive($key, $currentStatus, $filteredStatusFlow) ? 'active' : '' ?>">
-                            <div class="circle"><?= $key === $currentStatus ? "✔" : "" ?></div>
-                            <div class="label">
-                                <?= htmlspecialchars($label) ?>
-                                
-                                <?php if ($key === 'delivery_in_progress' && isset($deliveryProofs[0])): ?>
-    <div class="mt-2">
-        <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
-           data-bs-url="<?= htmlspecialchars($deliveryProofs[0]['proof_url']) ?>"
-           data-bs-type="<?= htmlspecialchars($deliveryProofs[0]['proof_type']) ?>"
-           data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($deliveryProofs[0]['created_at']))) ?>">
-            View
-        </a>
-    </div>
-<?php endif; ?>
+    // Sort delivery proofs by creation time
+    $deliveryProofs = $proofsByType['delivery'];
+    usort($deliveryProofs, function($a, $b) {
+        return strtotime($a['created_at']) - strtotime($b['created_at']);
+    });
+?>
 
-<?php if ($key === 'delivered' && isset($deliveryProofs[1])): ?>
-    <div class="mt-2">
-        <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
-           data-bs-url="<?= htmlspecialchars($deliveryProofs[1]['proof_url']) ?>"
-           data-bs-type="<?= htmlspecialchars($deliveryProofs[1]['proof_type']) ?>"
-           data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($deliveryProofs[1]['created_at']))) ?>">
-            View
-        </a>
-    </div>
-<?php endif; ?>
+<?php foreach ($filteredStatusFlow as $key => $label): ?>
+    <div class="progress-step <?= isStatusActive($key, $currentStatus, $filteredStatusFlow) ? 'active' : '' ?>">
+        <div class="circle"><?= $key === $currentStatus ? "✔" : "" ?></div>
+        <div class="label">
+            <?= htmlspecialchars($label) ?>
 
-<?php if ($key === 'returned' && !empty($proofsByType['return'])): ?>
-    <div class="mt-2">
-        <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
-           data-bs-url="<?= htmlspecialchars($proofsByType['return'][0]['proof_url']) ?>"
-           data-bs-type="<?= htmlspecialchars($proofsByType['return'][0]['proof_type']) ?>"
-           data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($proofsByType['return'][0]['created_at']))) ?>">
-            View
-        </a>
-    </div>
-<?php endif; ?>
+            <!-- For "delivery_in_progress", show proof uploaded by the owner (delivery proof) -->
+            <?php if ($key === 'delivery_in_progress' && isset($proofsByType['delivery'][0])): ?>
+                <div class="mt-2">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
+                       data-bs-url="<?= htmlspecialchars($proofsByType['delivery'][0]['proof_url']) ?>"
+                       data-bs-type="<?= htmlspecialchars($proofsByType['delivery'][0]['proof_type']) ?>"
+                       data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($proofsByType['delivery'][0]['created_at']))) ?>">
+                        View (Owner's Proof of Delivery)
+                    </a>
+                </div>
+            <?php endif; ?>
 
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+            <!-- For "delivered", show proof uploaded by the renter (delivery completion proof) -->
+            <?php if ($key === 'delivered' && isset($proofsByType['delivered'][0])): ?>
+                <div class="mt-2">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
+                       data-bs-url="<?= htmlspecialchars($proofsByType['delivered'][0]['proof_url']) ?>"
+                       data-bs-type="<?= htmlspecialchars($proofsByType['delivered'][0]['proof_type']) ?>"
+                       data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($proofsByType['delivered'][0]['created_at']))) ?>">
+                        View (Renter's Proof of Delivery Completion)
+                    </a>
+                </div>
+            <?php endif; ?>
+
+            <!-- For "return", show return proof -->
+            <?php if ($key === 'returned' && isset($proofsByType['return'][0])): ?>
+                <div class="mt-2">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#proofModal" 
+                       data-bs-url="<?= htmlspecialchars($proofsByType['return'][0]['proof_url']) ?>"
+                       data-bs-type="<?= htmlspecialchars($proofsByType['return'][0]['proof_type']) ?>"
+                       data-bs-date="<?= htmlspecialchars(date('F j, Y', strtotime($proofsByType['return'][0]['created_at']))) ?>">
+                        View (Renter's Proof of Return)
+                    </a>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php endforeach; ?>
                 </div>
             </div>
         </div>

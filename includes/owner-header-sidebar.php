@@ -173,7 +173,7 @@ if (isset($_POST['become_renter'])) {
                 <a href="/rb/owner/rentals.php" id="rentalsLink"><i class="fas fa-sync-alt me-2 text-success"></i> Rentals</a>
                 <a href="/rb/owner/messages.php" id="messagesLink"><i class="fas fa-comment-alt me-2 text-success"></i> Messages</a>
                 <a href="/rb/owner/all-reports.php" id="reportsLink"><i class="fas fa-file-alt me-2 text-success"></i> All reports</a>
-                <a href="/rb/owner/view-transaction.php" id="transactionsLink"><i class="fas fa-coins me-2 text-success"></i> Transactions </a>
+                <a href="/rb/owner/file_dispute.php" id="transactionsLink"><i class="fas fa-coins me-2 text-success"></i> File a Dispute </a>
                 <a href="/rb/owner/gadgets_assessment.php" id="assessmentLink"><i class="fas fa-file-alt me-2 text-success"></i> Assess Gadgets</a>
                 <a href="/rb/owner/logout.php" class="text-danger" id="logoutLink"><i class="fas fa-sign-out-alt me-2 text-success"></i> Log out</a>
             </div>

@@ -29,7 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $billing_email = filter_var(trim($_POST['billing_email']), FILTER_VALIDATE_EMAIL);
     $billing_phone = htmlspecialchars(trim($_POST['billing_phone']));
     $billing_address = htmlspecialchars(trim($_POST['billing_address']));
-    $billing_country = htmlspecialchars(trim($_POST['billing_country']));
     $billing_city = htmlspecialchars(trim($_POST['billing_city']));
     $billing_zip = htmlspecialchars(trim($_POST['billing_zip']));
     $payment_method = htmlspecialchars(trim($_POST['payment_method']));
@@ -48,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         empty($billing_name) || 
         empty($billing_phone) || 
         empty($billing_address) || 
-        empty($billing_country) || 
         empty($billing_city) || 
         empty($billing_zip) || 
         empty($payment_method)
@@ -132,9 +130,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Insert into billing_details
             $billingSql = "INSERT INTO billing_details 
-                (rental_id, name, email, phone, address, country, city, zip, created_at, updated_at)
+                (rental_id, name, email, phone, address, city, zip, created_at, updated_at)
                 VALUES
-                (:rental_id, :name, :email, :phone, :address, :country, :city, :zip, NOW(), NOW())";
+                (:rental_id, :name, :email, :phone, :address, :city, :zip, NOW(), NOW())";
 
             $billingStmt = $conn->prepare($billingSql);
             $billingStmt->bindParam(':rental_id', $rentalId, PDO::PARAM_INT);
@@ -142,7 +140,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $billingStmt->bindParam(':email', $billing_email);
             $billingStmt->bindParam(':phone', $billing_phone);
             $billingStmt->bindParam(':address', $billing_address);
-            $billingStmt->bindParam(':country', $billing_country);
             $billingStmt->bindParam(':city', $billing_city);
             $billingStmt->bindParam(':zip', $billing_zip);
 
@@ -223,9 +220,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Insert into billing_details
                 $billingSql = "INSERT INTO billing_details 
-                    (rental_id, name, email, phone, address, country, city, zip, created_at, updated_at)
+                    (rental_id, name, email, phone, address, city, zip, created_at, updated_at)
                     VALUES
-                    (:rental_id, :name, :email, :phone, :address, :country, :city, :zip, NOW(), NOW())";
+                    (:rental_id, :name, :email, :phone, :address, :city, :zip, NOW(), NOW())";
 
                 $billingStmt = $conn->prepare($billingSql);
                 $billingStmt->bindParam(':rental_id', $rentalId, PDO::PARAM_INT);
@@ -233,7 +230,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $billingStmt->bindParam(':email', $billing_email);
                 $billingStmt->bindParam(':phone', $billing_phone);
                 $billingStmt->bindParam(':address', $billing_address);
-                $billingStmt->bindParam(':country', $billing_country);
                 $billingStmt->bindParam(':city', $billing_city);
                 $billingStmt->bindParam(':zip', $billing_zip);
 

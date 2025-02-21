@@ -172,7 +172,7 @@ if ($admin) {
             <img src="<?= htmlspecialchars($profile_image) ?>" 
      alt="Profile Picture" 
      class="profile-img me-2"
-     onerror="this.src='includes/default-profile.jpg'">
+     onerror="this.src='../images/pfp.png'">
 
 <span><?= htmlspecialchars($admin_name) ?></span>
                 <ul class="dropdown-menu dropdown-menu-end">
@@ -206,7 +206,6 @@ if ($admin) {
         <a href="/rb/admin/review_disputes.php"><i class="fas fa-gavel me-2"></i> Dispute Management</a>
         <a href="/rb/admin/analytics.php"><i class="fas fa-chart-line me-2"></i> Reports and Analytics</a>
         <a href="/rb/admin/supports.php"><i class="fas fa-headset me-2"></i> Support</a>
-        <a href="/rb/admin/notifications.php"><i class="fas fa-bell me-2"></i> Notifications</a>
         <a href="/rb/admin/settings.php"><i class="fas fa-cogs me-2"></i> Settings</a>
         <a href="/rb/admin/logout.php" class="text-danger"><i class="fas fa-sign-out-alt me-2"></i> Log Out</a>
     </div>
