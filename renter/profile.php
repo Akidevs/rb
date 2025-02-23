@@ -120,8 +120,9 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - Rentbox</title>
     <link rel="icon" type="image/png" href="../images/rb logo white.png">
-    <link href="../vendor/bootstrap-5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../vendor/bootstrap-5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../vendor/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/renter/browse_style.css">
     <style>
         .profile-header {
             background: linear-gradient(135deg, #198754 0%, #146c43 100%);

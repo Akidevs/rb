@@ -13,7 +13,7 @@ if (isset($_SESSION['id'])) {
     try {
         // Check user details
         $query = "
-            SELECT users.name, user_verification.verification_status 
+            SELECT users.name, users.role, users.profile_picture, user_verification.verification_status 
             FROM users
             LEFT JOIN user_verification ON users.id = user_verification.user_id
             WHERE users.id = :user_id
@@ -25,15 +25,29 @@ if (isset($_SESSION['id'])) {
         
         if ($user && $user['verification_status'] === 'verified') {
             $username = $user['name'];
+            $userRole = $user['role'];
+            
+            // Check if profile picture exists
+            if ($user['profile_picture'] && file_exists($_SERVER['DOCUMENT_ROOT'] . '/rb/' . $user['profile_picture'])) {
+                $profilePic = '/rb/' . $user['profile_picture']; // Correct path to image
+            } else {
+                $profilePic = '/rb/owner/includes/user.png'; // Default profile picture
+            }
         } else {
             $username = 'Guest';
+            $userRole = 'renter';  // Default to renter if not verified
+            $profilePic = '/rb/owner/includes/user.png'; // Default profile picture
         }
     } catch(PDOException $e) {
-        error_log("Database Error in navbar: " . $e->getMessage());
+        error_log("Database Error: " . $e->getMessage());
         $username = 'Guest';
+        $userRole = 'renter';
+        $profilePic = '/rb/owner/includes/user.png'; // Default profile picture in case of error
     }
 } else {
     $username = 'Guest';
+    $userRole = 'renter'; // Default if not logged in
+    $profilePic = '/rb/owner/includes/user.png'; // Default profile picture if not logged in
 }
 
 // Handle the "Become an Owner" button click
@@ -72,9 +86,6 @@ if (isset($_POST['become_owner'])) {
     }
 }
 ?>
-
-<!-- Rest of your HTML code remains the same -->
-
 <!-- HTML for navbar with username dynamically displayed -->
 <div class="container bg-body rounded-bottom-5 d-flex mb-5 py-3 shadow">
     <a href="browse.php">
@@ -87,27 +98,31 @@ if (isset($_POST['become_owner'])) {
     <div class="d-flex me-5 align-items-center gap-3">
         <button type="button" class="success btn btn-outline-success rounded-circle"><i class="bi bi-search fs-5"></i></button>
         <a href="../renter/cart.php">
-            <button type="button" class="success btn btn-outline-success rounded-circle">
-                <i class="bi bi-basket3 fs-5"></i>
-            </button>
-        </a>
+    <button type="button" class="success btn btn-outline-success rounded-circle">
+        <i class="bi bi-basket3 fs-5"></i>
+    </button>
+</a>
 
-        <!-- Dropdown for logged-in user -->
-        <div class="dropdown">
-            <button class="success btn btn-outline-success rounded-circle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle fs-5"></i>
+
+
+        <!-- IF LOGGED IN  -->
+        <div class="dropdown-center">
+            <button type="button" class="success btn btn-outline-success rounded-circle m-0 p-0" type="button" data-bs-toggle="dropdown" aria-expanded="true">
+                <img src="<?= htmlspecialchars($profilePic) ?>" class="object-fit-fill border rounded-circle" alt="pfp" style="width:50px; height: 50px;">
             </button>
-            <ul class="dropdown-menu dropdown-menu-end mb-0 rounded-bottom-3 shadow border border-0" aria-labelledby="userDropdown">
-                <!-- Display username above the profile -->
-                <li class="dropdown-item pe-5 text-muted">Hello, <?= htmlspecialchars($username) ?></li>
-                <li><a class="dropdown-item pe-5" href="profile.php">Profile</a></li>
-                <li><a class="dropdown-item pe-5" href="message.php">Messages</a></li>
-                <li><a class="dropdown-item pe-5" href="rentals.php">Rentals</a></li>
-                <hr class="dropdown-divider">
-                <li><a class="dropdown-item pe-5" href="supports.php">Supports</a></li>
-                <li><a class="dropdown-item pe-5" href="file_dispute.php">File Dispute</a></li>
-                <hr class="dropdown-divider">
-                <li><a class="dropdown-item text-danger fw-bold pe-5" href="../includes/logout.php">Logout</a></li>
+            <ul class="dropdown-menu rounded-4">
+                <li>
+                    <p class="dropdown-item-text fw-bold m-0"><?= htmlspecialchars($username) ?></p>
+                </li>
+                <hr class="m-0 p-0">
+                <li class="my-1"><a class="dropdown-item" href="profile.php"><i class="bi bi-gear-fill me-2"></i>Profile</a></li>
+                <li class="my-1"><a class="dropdown-item" href="message.php"><i class="bi bi-envelope-fill me-2"></i>Messages</a></li>
+                <li class="my-1"><a class="dropdown-item" href="rentals.php"><i class="bi bi-box2-heart-fill me-2"></i>Rentals</a></li>
+                <hr class="m-0 p-0">
+                <li class="my-1"><a class="dropdown-item" href="supports.php"><i class="bi bi-headset me-2"></i>Supports</a></li>
+                <li class="my-1"><a class="dropdown-item" href="file_dispute.php"><i class="bi bi-file-earmark-x-fill me-2"></i>File Dispute</a></li>
+                <hr class="m-0 p-0">
+                <li class="my-1"><a class="dropdown-item" href="../includes/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Log out</a></li>
             </ul>
         </div>
     </div>
@@ -123,7 +138,6 @@ if (isset($_POST['become_owner'])) {
       </div>
       <div class="modal-body">
         <p>Are you sure you want to switch to Owner mode?</p>
-        <p>If you are not verified, you won't be able to access Owner features.</p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

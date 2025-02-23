@@ -140,6 +140,8 @@ $comments = $commentsStmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="../vendor/bootstrap-5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../vendor/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../vendor/flatpickr.min.css">
+    <link rel="stylesheet" href="../css/renter/browse_style.css">
+
     <link rel="stylesheet" href="../other.css">
     <style>
         /* Comment Section Styles */
@@ -170,7 +172,7 @@ $comments = $commentsStmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
     <?php
-        require_once '../includes/navbar.php';
+        require_once '../includes/navbarr.php';
     ?>
     <hr class="m-0 p-0 opacity-25">
 

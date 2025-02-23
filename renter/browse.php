@@ -1,4 +1,5 @@
 <?php
+//browse.php
 session_start();
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -7,6 +8,7 @@ error_reporting(E_ALL);
 // Include database connection
 require_once __DIR__ . '/../db/db.php';
 
+
 // Initialize search term
 $searchTerm = '';
 if (isset($_GET['search'])) {
@@ -14,7 +16,7 @@ if (isset($_GET['search'])) {
 }
 
 // Initialize pagination variables
-$limit = 12; // Number of products per page
+$limit = 8; // Number of products per page
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
 
@@ -184,16 +186,16 @@ foreach ($allProducts as $product) {
             <div class="mx-5 my-4 container-fluid d-flex justify-content-between align-items-center">
                 <p class="fs-4 fw-bolder my-auto rb">Rent Gadgets, Your Way</p>
                 <form class="d-flex gap-3 my-lg-0" method="GET" action="">
-                    <input class="form-control rounded-5 px-3 shadow-sm" 
-                           type="text" 
-                           placeholder="Type to search..."
-                           id="searchInput" 
-                           name="search" 
-                           value="<?php echo htmlspecialchars($searchTerm); ?>">
-                    <button class="btn btn-success rounded-5 px-4 py-0 m-0 shadow-sm" type="submit">
-                        Search
-                    </button>
-                </form>
+    <input class="form-control rounded-5 px-3 shadow-sm" 
+           type="text" 
+           placeholder="Type to search..."
+           id="searchInput" 
+           name="search" 
+           value="<?php echo htmlspecialchars($searchTerm); ?>">
+    <button class="btn btn-success rounded-5 px-4 py-0 m-0 shadow-sm" type="submit">
+        Search
+    </button>
+</form>
             </div>
         </div>
 
@@ -206,7 +208,7 @@ foreach ($allProducts as $product) {
                 <!-- Products Display Area -->
                 <div id="product-list" class="col-md-9 rounded-start-3 bg-body-secondary">
     <div class="mb-3 mt-0 container rounded-start-3 bg-body-secondary">
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3" id="dynamic-products">
             <?php foreach ($formattedProducts as $product): ?>
                 <div class="col">
                     <div class="border rounded-3 p-3 bg-body hover-effect">
@@ -241,38 +243,41 @@ foreach ($allProducts as $product) {
             <?php endforeach; ?>
         </div>
     </div>
+<!-- Pagination -->
+<!-- Pagination -->
+<div class="mx-3 mb-4">
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-between">
+            <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                <a class="page-link" 
+                   href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page - 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>" 
+                   aria-label="Previous">
+                    <i class="bi bi-caret-left-fill"></i>
+                </a>
+            </li>
+            
+            <div class="d-flex gap-2">
+                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                    <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                        <a class="page-link" 
+                           href="?search=<?php echo $searchTerm; ?>&page=<?php echo $i; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>">
+                           <?php echo $i; ?>
+                        </a>
+                    </li>
+                <?php endfor; ?>
+            </div>
 
-                    <!-- Pagination -->
-                    <div class="mx-3 mb-4">
-                        <nav aria-label="Page navigation">
-                            <ul class="pagination justify-content-between">
-                                <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                                    <a class="page-link" 
-                                       href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page - 1; ?>" 
-                                       aria-label="Previous">
-                                        <i class="bi bi-caret-left-fill"></i>
-                                    </a>
-                                </li>
-                                <div class="d-flex gap-2">
-                                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                                        <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                                            <a class="page-link" 
-                                               href="?search=<?php echo $searchTerm; ?>&page=<?php echo $i; ?>">
-                                               <?php echo $i; ?>
-                                            </a>
-                                        </li>
-                                    <?php endfor; ?>
-                                </div>
-                                <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                                    <a class="page-link" 
-                                       href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page + 1; ?>" 
-                                       aria-label="Next">
-                                        <i class="bi bi-caret-right-fill"></i>
-                                    </a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
+            <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                <a class="page-link" 
+                   href="?search=<?php echo $searchTerm; ?>&page=<?php echo $page + 1; ?>&sort=<?php echo $_GET['sort'] ?? 'newest'; ?>" 
+                   aria-label="Next">
+                    <i class="bi bi-caret-right-fill"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
                 </div>
             </div>
 

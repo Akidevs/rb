@@ -50,8 +50,6 @@ if (isset($_SESSION['id'])) {
     $profilePic = '/rb/owner/includes/user.png'; // Default profile picture if not logged in
 }
 
-echo "Profile Pic: " . $profilePic; // Debugging the path
-
 // Handle the "Become a Renter" button click
 if (isset($_POST['become_renter'])) {
     try {
@@ -147,23 +145,22 @@ if (isset($_POST['become_renter'])) {
                         </ul>
                     </div>
                     <!-- Profile Dropdown -->
-                     
                     <div class="dropdown">
-    <a href="#" class="text-decoration-none d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
-        <img src="<?= htmlspecialchars($profilePic) ?>" alt="User Profile" class="profile-img">
-        <div class="d-flex flex-column align-items-start profile-details">
-            <span class="fw-bold"><?= htmlspecialchars($username) ?></span>
-            <span class="badge bg-warning text-dark"><?= htmlspecialchars($userRole) ?></span>
-        </div>
-    </a>
-    <ul class="dropdown-menu dropdown-menu-end">
-        <li><a href="/rb/owner/manage-account-owner.php" class="dropdown-item">Profile</a></li>
-        <li><a href="#" class="dropdown-item">Settings</a></li>
-        <li><a href="#" class="dropdown-item text-danger">Log Out</a></li>
-    </ul>
-</div>
+                        <a href="#" class="text-decoration-none d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="<?= htmlspecialchars($profilePic) ?>" alt="User Profile" class="profile-img">
+                            <div class="d-flex flex-column align-items-start profile-details">
+                                <span class="fw-bold"><?= htmlspecialchars($username) ?></span>
+                                <span class="badge bg-warning text-dark"><?= htmlspecialchars($userRole) ?></span>
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a href="/rb/owner/manage-account-owner.php" class="dropdown-item">Profile</a></li>
+                            <li><a href="#" class="dropdown-item">Settings</a></li>
+                            <li><a href="#" class="dropdown-item text-danger">Log Out</a></li>
+                        </ul>
+                    </div>
                     <!-- Become a Renter Button -->
-                    <button class="btn btn-primary ms-3" id="becomeRenterBtn">Become a Renter</button>
+                    <button class="btn btn-primary ms-3" id="becomeRenterBtn" data-bs-toggle="modal" data-bs-target="#becomeRenterModal">Become a Renter</button>
                 </div>
             </div>
         </div>
@@ -183,41 +180,35 @@ if (isset($_POST['become_renter'])) {
         </div>
     </div>
 
+    <!-- Modal for becoming a renter -->
+    <div class="modal fade" id="becomeRenterModal" tabindex="-1" aria-labelledby="becomeRenterModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="becomeRenterModalLabel">Become a Renter</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to switch to Renter mode?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="">
+                        <button type="submit" name="become_renter" class="btn btn-primary">Switch to Renter</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Add active class dynamically
-        const currentPath = window.location.pathname;
-        const links = {
-            "/rb/owner/dashboard.php": "dashboardLink",
-            "/rb/owner/gadget.php": "gadgetLink",
-            "/rb/owner/rentals.php": "rentalsLink",
-            "/rb/owner/messages.php": "messagesLink",
-            "/rb/owner/all-reports.php": "reportsLink",
-            "/rb/owner/view-transaction.php": "transactionsLink",
-            "/rb/owner/gadgets_assessment.php": "assessmentLink",
-            "/rb/owner/logout.php": "logoutLink"
-        };
-
-        // Check for the current page and add the active class
-        Object.keys(links).forEach((path) => {
-            if (currentPath === path) {  // Ensure exact match
-                document.getElementById(links[path]).classList.add("active");
-            }
-        });
-
         // Add the role change functionality for "Become a Renter" button
         document.getElementById('becomeRenterBtn').addEventListener('click', function(e) {
             e.preventDefault();
-
-            // Send request to change role to 'renter'
-            fetch('change_role.php', {
-                method: 'POST',
-                body: new URLSearchParams('role=renter')
-            }).then(() => {
-                window.location.href = '/rb/renter/browse.php'; // Redirect to renter browse page
-            });
+            // Show the modal to confirm the role change
+            $('#becomeRenterModal').modal('show');
         });
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="includes/owner-js.js"></script>
 </body>
