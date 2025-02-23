@@ -55,7 +55,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link href="vendor/bootstrap-5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body>
-    <?php require_once 'includes/navbar.php'; ?>
+<div class="container bg-body rounded-bottom-5 d-flex mb-5 py-3 shadow">
+    <a href="browse.php">
+        <img class="ms-5 my-4" src="images/rb logo text colored.png" alt="Logo" height="50px">
+    </a>
+    <div class="my-auto mx-auto d-flex gap-3">
+    </div>
+    <div class="d-flex me-5 align-items-center gap-3">
+    </div>
+</div>
     <main class="container-fluid">
         <div class="container-fluid">
             <div class="card mx-auto mb-5 border border-0" style="width:500px;">

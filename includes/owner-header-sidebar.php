@@ -13,7 +13,7 @@ if (isset($_SESSION['id'])) {
     try {
         // Check user details
         $query = "
-            SELECT users.name, users.role, user_verification.verification_status 
+            SELECT users.name, users.role, users.profile_picture, user_verification.verification_status 
             FROM users
             LEFT JOIN user_verification ON users.id = user_verification.user_id
             WHERE users.id = :user_id
@@ -26,19 +26,31 @@ if (isset($_SESSION['id'])) {
         if ($user && $user['verification_status'] === 'verified') {
             $username = $user['name'];
             $userRole = $user['role'];
+            
+            // Check if profile picture exists and set path
+            if ($user['profile_picture'] && file_exists($_SERVER['DOCUMENT_ROOT'] . '/rb/' . $user['profile_picture'])) {
+                $profilePic = '/rb/' . $user['profile_picture']; // Correct path to image
+            } else {
+                $profilePic = '/rb/owner/includes/user.png'; // Default profile picture
+            }
         } else {
             $username = 'Guest';
             $userRole = 'renter';  // Default to renter if not verified
+            $profilePic = '/rb/owner/includes/user.png'; // Default profile picture
         }
     } catch(PDOException $e) {
         error_log("Database Error: " . $e->getMessage());
         $username = 'Guest';
         $userRole = 'renter';
+        $profilePic = '/rb/owner/includes/user.png'; // Default profile picture in case of error
     }
 } else {
     $username = 'Guest';
     $userRole = 'renter'; // Default if not logged in
+    $profilePic = '/rb/owner/includes/user.png'; // Default profile picture if not logged in
 }
+
+echo "Profile Pic: " . $profilePic; // Debugging the path
 
 // Handle the "Become a Renter" button click
 if (isset($_POST['become_renter'])) {
@@ -135,20 +147,21 @@ if (isset($_POST['become_renter'])) {
                         </ul>
                     </div>
                     <!-- Profile Dropdown -->
+                     
                     <div class="dropdown">
-                        <a href="#" class="text-decoration-none d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img src="/rb/owner/includes/profile.jpg" alt="User Profile" class="profile-img">
-                            <div class="d-flex flex-column align-items-start profile-details">
-                                <span class="fw-bold"><?= htmlspecialchars($username) ?></span>
-                                <span class="badge bg-warning text-dark"><?= htmlspecialchars($userRole) ?></span>
-                            </div>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a href="/rb/owner/manage-account-owner.php" class="dropdown-item">Profile</a></li>
-                            <li><a href="#" class="dropdown-item">Settings</a></li>
-                            <li><a href="#" class="dropdown-item text-danger">Log Out</a></li>
-                        </ul>
-                    </div>
+    <a href="#" class="text-decoration-none d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
+        <img src="<?= htmlspecialchars($profilePic) ?>" alt="User Profile" class="profile-img">
+        <div class="d-flex flex-column align-items-start profile-details">
+            <span class="fw-bold"><?= htmlspecialchars($username) ?></span>
+            <span class="badge bg-warning text-dark"><?= htmlspecialchars($userRole) ?></span>
+        </div>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li><a href="/rb/owner/manage-account-owner.php" class="dropdown-item">Profile</a></li>
+        <li><a href="#" class="dropdown-item">Settings</a></li>
+        <li><a href="#" class="dropdown-item text-danger">Log Out</a></li>
+    </ul>
+</div>
                     <!-- Become a Renter Button -->
                     <button class="btn btn-primary ms-3" id="becomeRenterBtn">Become a Renter</button>
                 </div>
