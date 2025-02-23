@@ -1,0 +1,276 @@
+/* Sidebar styling */
+.sidebar {
+    background-color: #ffffff;
+    height: 100vh;
+    width: 250px;
+    padding-top: 70px;
+    border-right: 1px solid #dee2e6;
+    position: fixed;
+    left: 0;
+    top: 0;
+    transition: transform 0.3s ease-in-out;
+    z-index: 1040;
+    overflow-y: auto;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-250px);
+}
+
+.sidebar a {
+    padding: 10px;
+    display: block;
+    color: #333;
+    text-decoration: none;
+    transition: background-color 0.3s, border-radius 0.3s;
+}
+
+.sidebar a:hover {
+    background-color: #e9ecef;
+    border-radius: 8px;
+}
+
+/* Header styling */
+.header {
+    background-color: #ffffff;
+    padding: 12px 20px;
+    color: #000;
+    border-bottom: 1px solid #dee2e6;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 1050;
+    height: 60px;
+}
+
+.header a,
+.header button {
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: #000 !important; /* Ensure text color is black */
+    background: none; /* Remove background by default */
+    text-decoration: none; /* Prevent underline */
+    transition: background-color 0.3s ease;
+}
+
+.header a:hover,
+.header button:hover {
+    background-color: #e9ecef; /* Only greying on hover */
+}
+
+/* Profile Image styling */
+.profile-img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.main-content {
+    background-color: #f8f9fa; /* Background color for the main content */
+    min-height: 100vh; /* Ensure the height fills the viewport */
+    padding-top: 75px; /* Maintain padding at the top */
+    padding-left: 0px; /* Add padding on the left */
+    padding-right: 16px; /* Add padding on the right */
+    margin: 0; /* Remove any centering margins */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    box-sizing: border-box; /* Include padding in the total width calculation */
+}
+
+
+.welcome {
+    font-size: 2rem;
+    font-weight: bold;
+}
+.overview {
+    color: #6c757d;
+}
+
+/* DRAWERS */
+/* Styling for the dropdown drawers */
+/* Styling for the dropdown drawers */
+/* Styling for the dropdown drawers */
+.message-drawer, .notification-drawer {
+    border-radius: 8px; /* Smooth corners for a modern look */
+}
+
+/* Common styles for each message and notification item */
+.message-item, .notification-item {
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+}
+.message-item:hover, .notification-item:hover {
+    background-color: #f1f1f1; /* Highlight on hover */
+    border-radius: 5px;
+}
+
+/* Avatar styling */
+/* Avatar styling for consistent size */
+.avatar-container {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    margin-right: 15px; /* Add spacing between avatar and text */
+}
+
+.avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1px solid #dee2e6;
+}
+
+
+/* Notification and message headers */
+.fw-bold {
+    color: #343a40; /* Stronger color for headings */
+}
+
+/* Tabs at the top of the notification drawer */
+.active-tab {
+    color: #000;
+    text-decoration: underline;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+/* Center the "View All" links */
+.text-center {
+    text-align: center;
+}
+
+/* Scroll bar styling */
+.message-drawer::-webkit-scrollbar, .notification-drawer::-webkit-scrollbar {
+    width: 5px;
+}
+.message-drawer::-webkit-scrollbar-thumb, .notification-drawer::-webkit-scrollbar-thumb {
+    background: #cccccc;
+    border-radius: 10px;
+}
+
+
+
+.dropdown-menu {
+    overflow: hidden;
+}
+
+/* Arrow icon styling for consistency */
+.fa-chevron-right {
+    color: #6c757d;
+}
+
+.card-hover {
+    transition: transform 0.2s;
+}
+.card-hover:hover {
+    transform: scale(1.02);
+}
+
+.main-content.sidebar-collapsed {
+    margin-left: 0;
+}
+
+
+/* DASHBOARD */
+
+.prod-img-db {
+    width: 60px !important;
+    height: 60px !important;
+    object-fit: cover !important;
+    overflow: hidden;
+    display: block;
+
+    border: .5px solid #000000 !important; /* Light gray border */
+    border-radius: 8px !important; /* Rounded corners */
+}
+
+.device-name {
+    font-weight: bold;
+    color: #343a40;
+    margin-bottom: 4px;
+}
+
+.device-status {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.text-status {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.title-with-line {
+    border-bottom: 1px solid #dee2e6; /* Match Bootstrap's table border color and thickness */
+    padding-bottom: 8px;
+    margin-bottom: 0px;
+}
+
+.d-flex.align-items-center.mb-2 {
+    margin-top: 16px;
+    margin-bottom: 16px !important;
+}
+
+.d-flex.align-items-center.mb-2:first-child {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 4px;
+}
+
+
+
+
+
+
+/* Overlay styling */
+#overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1030;
+}
+
+#overlay.show {
+    display: block;
+}
+
+/* Responsive sidebar for small screens */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-250px);
+    }
+
+    .sidebar:not(.collapsed) {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        
+        padding-left: 16px;
+    }
+
+    /* Hide text elements in header */
+    .header h4, 
+    .header .ms-2, 
+    .header .profile-details {
+        display: none;
+    }
+
+    /* Adjust spacing for remaining icons and elements */
+    .header img, 
+    .header i {
+        margin-right: 15px;
+    }
+
+    .header {
+        padding: 8px 10px;
+    }
+}

@@ -1,0 +1,54 @@
+<div class="modal fade" id="edit-staticBackdrop" data-bs-backdrop="edit-static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="staticBackdropLabel">Edit Item</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- To be improved  -->
+          <div class="form-floating mb-3">
+            <input type="text" class="form-control" id="floatingInput" placeholder="Name">
+            <label for="floatingInput">Name</label>
+          </div>
+          <div class="form-floating mb-3">
+            <input type="password" class="form-control" id="floatingInput" placeholder="Brand">
+            <label for="floatingInput">Brand</label>
+          </div>
+          <div class="form-floating mb-3">
+            <textarea class="form-control" placeholder="Leave a comment here" id="floatingTextarea2" style="height: 100px"></textarea>
+            <label for="floatingTextarea2">Description</label>
+          </div>
+          <div class="input-group mb-3">
+            <span class="input-group-text">PHP</span>
+            <input type="text" class="form-control" aria-label="Amount">
+          </div>
+
+          <div class="d-flex flex-column justify-content-start mb-3">
+            <label class="form-label">Rental Period</label>
+            <div class="btn-group" role="group" id="btn-radio-group" aria-label="Basic radio toggle button group">
+              <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+              <label class="btn btn-outline-success" for="btnradio1">Day</label>
+
+              <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+              <label class="btn btn-outline-success" for="btnradio2">Week</label>
+
+              <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+              <label class="btn btn-outline-success" for="btnradio3">Month</label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="formFileMultiple" class="form-label">Display Image</label>
+            <input class="form-control" type="file" id="formFileMultiple" multiple>
+          </div>
+          
+        </div>
+
+          <div class="modal-footer">
+            <button type="text" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-success">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
